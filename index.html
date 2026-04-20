@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Svensk eHockey</title>
+  <meta
+    name="description"
+    content="Svensk eHockey samlar Svenska eHockey Cupen. Se vinnare, matcher, spelarstatistik och målvaktsstatistik för SEC 1, SEC 2 och vidare."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Svensk eHockey">
+        <span class="brand-mark"></span>
+        <span class="brand-text">
+          <strong>Svensk eHockey</strong>
+          <span>Officiell hubb för SEC-cuperna</span>
+        </span>
+      </a>
+
+      <nav class="site-nav" aria-label="Huvudmeny">
+        <a href="#cups">Cuper</a>
+        <a href="#results">Resultat</a>
+        <a href="#about">Om oss</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Svenska eHockey Cupen</p>
+          <h1>En ny hemmaplan för alla SEC-cuper.</h1>
+          <p class="hero-text">
+            Här samlar vi hela historiken för Svensk eHockey. Från tidiga SEC-turneringar i sheetet till nya cuper i databasen, allt på ett ställe.
+          </p>
+
+          <div class="hero-actions">
+            <a class="button button-primary" href="#cups">Se alla cuper</a>
+            <a class="button button-secondary" href="#results">Senaste resultat</a>
+          </div>
+
+          <dl class="hero-stats" id="hero-stats">
+            <div>
+              <dt>Cuper</dt>
+              <dd id="total-cups">0</dd>
+            </div>
+            <div>
+              <dt>Matcher</dt>
+              <dd id="total-matches">0</dd>
+            </div>
+            <div>
+              <dt>Spelare</dt>
+              <dd id="total-players">0</dd>
+            </div>
+          </dl>
+        </div>
+
+        <aside class="hero-panel">
+          <p class="panel-label">Säsongsöversikt</p>
+          <div class="hero-panel-grid">
+            <article>
+              <span>Format</span>
+              <strong>Gruppspel + slutspel</strong>
+            </article>
+            <article>
+              <span>Serier</span>
+              <strong>SEC 1, SEC 2, SEC 3...</strong>
+            </article>
+            <article>
+              <span>Data</span>
+              <strong>Sheet + databas</strong>
+            </article>
+            <article>
+              <span>Status</span>
+              <strong id="data-status">Laddar data</strong>
+            </article>
+          </div>
+        </aside>
+      </section>
+
+      <section class="section section-highlight" id="results">
+        <div class="section-heading">
+          <p class="eyebrow">Resultat</p>
+          <h2>Senaste mästarna</h2>
+        </div>
+
+        <div class="champions-grid" id="champions-grid"></div>
+      </section>
+
+      <section class="section" id="cups">
+        <div class="section-heading">
+          <p class="eyebrow">Cuparkiv</p>
+          <h2>Alla SEC-cuper</h2>
+          <p>Varje cup visar vinnare, antal matcher, toppspelare och nyckelsiffror.</p>
+        </div>
+
+        <div class="controls">
+          <label class="search-field">
+            <span>Sök cup</span>
+            <input id="cup-search" type="search" placeholder="Exempel: SEC 7">
+          </label>
+
+          <label class="select-field">
+            <span>Visa</span>
+            <select id="cup-sort">
+              <option value="desc">Nyast först</option>
+              <option value="asc">Äldst först</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="cups-grid" id="cups-grid"></div>
+      </section>
+
+      <section class="section section-alt" id="about">
+        <div class="section-heading">
+          <p class="eyebrow">Svensk eHockey</p>
+          <h2>Byggd för att växa med varje ny cup</h2>
+          <p>
+            Sidan är förberedd för att läsa äldre SEC-cuper från Google Sheet och nya cuper från databas utan att designen eller strukturen behöver ändras.
+          </p>
+        </div>
+
+        <div class="info-grid">
+          <article class="info-card">
+            <h3>Gemensamt format</h3>
+            <p>Alla källor mappas till samma JSON. Det gör att SEC 1 och SEC 40 kan visas på exakt samma sätt.</p>
+          </article>
+          <article class="info-card">
+            <h3>Snabb uppdatering</h3>
+            <p>När du uppdaterar sheetet eller databasen kan sidan hämta nytt innehåll utan att du behöver bygga om allt.</p>
+          </article>
+          <article class="info-card">
+            <h3>Tydlig identitet</h3>
+            <p>Färger, typografi och upplägg är gjorda för att kännas sportigt, svenskt och mer premium än en vanlig standardmall.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <template id="champion-card-template">
+    <article class="champion-card">
+      <p class="champion-cup"></p>
+      <h3 class="champion-team"></h3>
+      <p class="champion-meta"></p>
+    </article>
+  </template>
+
+  <template id="cup-card-template">
+    <article class="cup-card">
+      <div class="cup-card-top">
+        <div>
+          <p class="cup-code"></p>
+          <h3 class="cup-name"></h3>
+        </div>
+        <span class="cup-badge"></span>
+      </div>
+
+      <dl class="cup-summary">
+        <div>
+          <dt>Vinnare</dt>
+          <dd class="cup-winner"></dd>
+        </div>
+        <div>
+          <dt>Tvåa</dt>
+          <dd class="cup-runner-up"></dd>
+        </div>
+        <div>
+          <dt>Matcher</dt>
+          <dd class="cup-match-count"></dd>
+        </div>
+        <div>
+          <dt>Poängkung</dt>
+          <dd class="cup-top-scorer"></dd>
+        </div>
+      </dl>
+
+      <div class="cup-footer">
+        <p class="cup-stage-note"></p>
+      </div>
+    </article>
+  </template>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
