@@ -644,6 +644,10 @@ function renderCupPage(cup) {
   const overview = getCupOverview(cup);
   const groupStandings = buildGroupStandings(cup.matches);
   const playoffRounds = buildPlayoffRounds(cup.matches);
+  const latestMatches = cup.matches.slice().sort(compareMatchesDesc).slice(0, 10);
+  const topPlayers = overview.topPlayers.slice(0, 10);
+  const topGoalies = overview.topGoalies.slice(0, 10);
+  const goalieKing = topGoalies[0] || null;
 
   return `
     <section class="cup-hero">
@@ -691,7 +695,7 @@ function renderCupPage(cup) {
         <strong>${cup.matchCount}</strong>
       </article>
       <article class="detail-card hero-stat-card">
-        <span class="detail-label">Poängkung</span>
+        <span class="detail-label">Poangkung</span>
         <strong>${escapeHtml(cup.topScorer)}</strong>
       </article>
       <article class="detail-card hero-stat-card">
@@ -699,26 +703,94 @@ function renderCupPage(cup) {
         <strong>${escapeHtml(cup.winner)}</strong>
       </article>
       <article class="detail-card hero-stat-card">
-        <span class="detail-label">Finalist</span>
-        <strong>${escapeHtml(cup.runnerUp)}</strong>
+        <span class="detail-label">Malvaktskung</span>
+        <strong>${goalieKing ? escapeHtml(goalieKing.player) : "Ej klar"}</strong>
       </article>
     </section>
 
     <section class="cup-tabs-shell">
       <div class="cup-tabs" role="tablist" aria-label="Cupflikar">
-        <button class="cup-tab is-active" type="button" role="tab" aria-selected="true" data-cup-tab="statistik">Statistik</button>
+        <button class="cup-tab is-active" type="button" role="tab" aria-selected="true" data-cup-tab="oversikt">Oversikt</button>
+        <button class="cup-tab" type="button" role="tab" aria-selected="false" data-cup-tab="statistik">Statistik</button>
+        <button class="cup-tab" type="button" role="tab" aria-selected="false" data-cup-tab="matcher">Matcher</button>
         <button class="cup-tab" type="button" role="tab" aria-selected="false" data-cup-tab="tabell">Tabell</button>
-        <button class="cup-tab" type="button" role="tab" aria-selected="false" data-cup-tab="slutspel">Slutspelsträd</button>
+        <button class="cup-tab" type="button" role="tab" aria-selected="false" data-cup-tab="slutspel">Slutspelstrad</button>
         <button class="cup-tab" type="button" role="tab" aria-selected="false" data-cup-tab="regler">Regler</button>
       </div>
 
       <div class="cup-tab-panels">
-        <section class="cup-tab-panel is-active" data-cup-panel="statistik" role="tabpanel">
+        <section class="cup-tab-panel is-active" data-cup-panel="oversikt" role="tabpanel">
+          <div class="two-column-section">
+            <article class="detail-card">
+              <div class="section-heading compact">
+                <p class="eyebrow">Senaste</p>
+                <h2>Senaste 10 matcher</h2>
+              </div>
+              <div class="simple-list">
+                ${latestMatches.length ? latestMatches.map(function(match) {
+                  return `<div class="simple-list-item">${escapeHtml(match.group || (match.stage === "playoffs" ? "Slutspel" : "Gruppspel"))}: ${escapeHtml(match.awayTeam)} ${displayScore(match.awayScore)}-${displayScore(match.homeScore)} ${escapeHtml(match.homeTeam)}</div>`;
+                }).join("") : `<div class="empty-state">Inga matcher finns registrerade an.</div>`}
+              </div>
+            </article>
+
+            <article class="detail-card">
+              <div class="section-heading compact">
+                <p class="eyebrow">Poang</p>
+                <h2>Topp 10 poang</h2>
+              </div>
+              ${renderStatsTable(
+                ["Spelare", "Lag", "PTS"],
+                topPlayers.map(function(row) {
+                  return [
+                    renderPlayerLink(row),
+                    renderTeamLink(row.team),
+                    row.pts
+                  ];
+                })
+              )}
+            </article>
+          </div>
+
+          <div class="two-column-section">
+            <article class="detail-card">
+              <div class="section-heading compact">
+                <p class="eyebrow">Malvakter</p>
+                <h2>Topp 10 SV%</h2>
+              </div>
+              ${renderStatsTable(
+                ["Spelare", "Lag", "SV%", "GP"],
+                topGoalies.map(function(row) {
+                  return [
+                    renderPlayerLink(row),
+                    renderTeamLink(row.team),
+                    formatPercentage(row.svp),
+                    row.gp
+                  ];
+                })
+              )}
+            </article>
+
+            <article class="detail-card">
+              <div class="section-heading compact">
+                <p class="eyebrow">Finalbild</p>
+                <h2>Vinnare och toppar</h2>
+              </div>
+              <div class="simple-list">
+                <div class="simple-list-item">Vinnare: ${escapeHtml(cup.winner)}</div>
+                <div class="simple-list-item">Finalist: ${escapeHtml(cup.runnerUp)}</div>
+                <div class="simple-list-item">Poangkung: ${escapeHtml(cup.topScorer)}</div>
+                <div class="simple-list-item">Malvaktskung: ${goalieKing ? escapeHtml(goalieKing.player) + " (" + formatPercentage(goalieKing.svp) + ")" : "Ej klar"}</div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="cup-tab-panel" data-cup-panel="statistik" role="tabpanel" hidden>
           <div class="two-column-section">
             <article class="detail-card">
               <div class="section-heading compact">
                 <p class="eyebrow">Topplista</p>
-                <h2>Poängliga</h2>
+                <h2>Poangliga</h2>
               </div>
               ${renderStatsTable(
                 ["Spelare", "Lag", "GP", "G", "A", "PTS"],
@@ -737,7 +809,7 @@ function renderCupPage(cup) {
 
             <article class="detail-card">
               <div class="section-heading compact">
-                <p class="eyebrow">Målvakter</p>
+                <p class="eyebrow">Malvakter</p>
                 <h2>Topplista</h2>
               </div>
               ${renderStatsTable(
@@ -755,7 +827,9 @@ function renderCupPage(cup) {
               )}
             </article>
           </div>
+        </section>
 
+        <section class="cup-tab-panel" data-cup-panel="matcher" role="tabpanel" hidden>
           <section class="section">
             <div class="section-heading">
               <p class="eyebrow">Matcher</p>
@@ -764,14 +838,14 @@ function renderCupPage(cup) {
             <div class="stage-stack">
               ${overview.playoffMatches.length ? renderMatchCollection("Slutspel", overview.playoffMatches) : ""}
               ${overview.groupMatches.length ? renderMatchCollection("Gruppspel", overview.groupMatches) : ""}
-              ${!cup.matches.length ? `<div class="empty-state">Inga matcher finns registrerade för den här cupen.</div>` : ""}
+              ${!cup.matches.length ? `<div class="empty-state">Inga matcher finns registrerade for den har cupen.</div>` : ""}
             </div>
           </section>
         </section>
 
         <section class="cup-tab-panel" data-cup-panel="tabell" role="tabpanel" hidden>
           <div class="stack-grid">
-            ${groupStandings.length ? groupStandings.map(renderStandingsTable).join("") : `<div class="empty-state">Ingen gruppstatistik finns än.</div>`}
+            ${groupStandings.length ? groupStandings.map(renderStandingsTable).join("") : `<div class="empty-state">Ingen gruppstatistik finns an.</div>`}
           </div>
         </section>
 
@@ -792,7 +866,7 @@ function renderTeamsIndex() {
     <section class="section-header-block">
       <p class="eyebrow">Lagregister</p>
       <h1 class="page-title">Alla lag</h1>
-      <p class="page-intro">Klicka in på ett lag för att se cuper, matcher och spelare.</p>
+      <p class="page-intro">Klicka in pa ett lag for att se cuper, matcher och spelare.</p>
     </section>
     <section class="entity-grid">
       ${state.teams.map(renderTeamCard).join("")}
@@ -822,7 +896,7 @@ function renderTeamPage(team) {
         <div>
           <p class="eyebrow">Lagprofil</p>
           <h1 class="page-title">${escapeHtml(team.name)}</h1>
-          <p class="page-intro">Matcher, cuper och spelarproduktion för laget.</p>
+          <p class="page-intro">Matcher, cuper och spelarproduktion for laget.</p>
         </div>
       </div>
     </section>
@@ -830,14 +904,14 @@ function renderTeamPage(team) {
     <section class="detail-grid">
       <article class="detail-card hero-stat-card"><span class="detail-label">Cuper</span><strong>${team.cups.length}</strong></article>
       <article class="detail-card hero-stat-card"><span class="detail-label">Vinster</span><strong>${team.wins}</strong></article>
-      <article class="detail-card hero-stat-card"><span class="detail-label">Mål för</span><strong>${team.goalsFor}</strong></article>
-      <article class="detail-card hero-stat-card"><span class="detail-label">Mål emot</span><strong>${team.goalsAgainst}</strong></article>
+      <article class="detail-card hero-stat-card"><span class="detail-label">Mal for</span><strong>${team.goalsFor}</strong></article>
+      <article class="detail-card hero-stat-card"><span class="detail-label">Mal emot</span><strong>${team.goalsAgainst}</strong></article>
     </section>
 
     <section class="two-column-section">
       <article class="detail-card">
         <div class="section-heading compact">
-          <p class="eyebrow">Poängproduktion</p>
+          <p class="eyebrow">Poangproduktion</p>
           <h2>Toppspelare</h2>
         </div>
         ${renderStatsTable(
@@ -881,7 +955,7 @@ function renderPlayersIndex() {
     <section class="section-header-block">
       <p class="eyebrow">Spelarregister</p>
       <h1 class="page-title">Alla spelare</h1>
-      <p class="page-intro">Klicka på en spelare för att se total statistik och laghistorik.</p>
+      <p class="page-intro">Klicka pa en spelare for att se total statistik och laghistorik.</p>
     </section>
     <section class="detail-card">
       ${renderStatsTable(
@@ -902,7 +976,7 @@ function renderPlayersIndex() {
 
 function renderPlayerPage(player) {
   const goalieGames = sumBy(player.goalieRows, "gp");
-  const latestTeam = player.teamNames[0] || "Okänt lag";
+  const latestTeam = player.teamNames[0] || "Okant lag";
   const isGoalieOnly = player.skaterRows.length === 0 && player.goalieRows.length > 0;
 
   return `
@@ -917,9 +991,9 @@ function renderPlayerPage(player) {
       <div class="player-page-heading">
         ${renderPlayerPortrait(player, "player-portrait-lg")}
         <div>
-          <p class="eyebrow">${isGoalieOnly ? "Målvaktsprofil" : "Spelarprofil"}</p>
+          <p class="eyebrow">${isGoalieOnly ? "Malvaktsprofil" : "Spelarprofil"}</p>
           <h1 class="page-title">${escapeHtml(player.name)}</h1>
-          <p class="page-intro">Total statistik över spelarens SEC-historik.</p>
+          <p class="page-intro">Total statistik over spelarens SEC-historik.</p>
         </div>
       </div>
     </section>
@@ -957,7 +1031,7 @@ function renderPlayerPage(player) {
     ${player.goalieRows.length ? `
       <section class="detail-card">
         <div class="section-heading compact">
-          <p class="eyebrow">Målvakt</p>
+          <p class="eyebrow">Malvakt</p>
           <h2>Alla cuper</h2>
         </div>
         ${renderStatsTable(
@@ -998,7 +1072,7 @@ function renderCupCard(cup) {
       <img class="cup-logo" src="./SECLOGGA.png" alt="Cup Logo">
       <a href="#/cup/${encodeURIComponent(cup.id)}">${escapeHtml(cup.name)}</a>
       <div class="cup-season">
-        Säsong: ${escapeHtml(seasonText)}<br>
+        Sasong: ${escapeHtml(seasonText)}<br>
         Datum: ${escapeHtml(dateLine)}<br>
         Matcher: ${cup.matchCount}<br>
         Vinnare: ${escapeHtml(cup.winner)}
@@ -1016,7 +1090,7 @@ function renderTeamCard(team) {
         <h3>${escapeHtml(team.name)}</h3>
       </div>
       <p>${team.cups.length} cuper, ${team.matches.length} matcher</p>
-      <a class="inline-link" href="#/team/${encodeURIComponent(team.key)}">Öppna lag</a>
+      <a class="inline-link" href="#/team/${encodeURIComponent(team.key)}">Oppna lag</a>
     </article>
   `;
 }
@@ -1048,14 +1122,14 @@ function renderStandingsTable(group) {
 
 function renderPlayoffBracket(rounds, playoffMatches) {
   if (!playoffMatches.length) {
-    return `<div class="empty-state">Inget slutspel finns registrerat för den här cupen än.</div>`;
+    return `<div class="empty-state">Inget slutspel finns registrerat for den har cupen an.</div>`;
   }
 
   return `
     <section class="playoff-shell">
       <div class="section-heading">
         <p class="eyebrow">Slutspel</p>
-        <h2>Slutspelsträd</h2>
+        <h2>Slutspelstrad</h2>
       </div>
       <div class="playoff-bracket">
         ${rounds.map(function(round) {
@@ -1101,21 +1175,21 @@ function renderCupRules(cup) {
             <h2>Turnering</h2>
           </div>
           <div class="simple-list">
-            <div class="simple-list-item">Gruppspel avgör grundplacering och seeding till slutspelet.</div>
-            <div class="simple-list-item">Slutspelsmatcher avgör avancemang till nästa runda.</div>
-            <div class="simple-list-item">Resultat, tabeller och statistik uppdateras direkt på cupsidan.</div>
+            <div class="simple-list-item">Gruppspel avgor grundplacering och seeding till slutspelet.</div>
+            <div class="simple-list-item">Slutspel matcher avgor avancemang till nasta runda.</div>
+            <div class="simple-list-item">Resultat, tabeller och statistik uppdateras direkt pa cupsidan.</div>
           </div>
         </article>
 
         <article class="detail-card">
           <div class="section-heading compact">
-            <p class="eyebrow">Poäng</p>
+            <p class="eyebrow">Poang</p>
             <h2>Gruppspel</h2>
           </div>
           <div class="simple-list">
-            <div class="simple-list-item">Vinst ger 3 poäng i tabellen.</div>
-            <div class="simple-list-item">Övertidsförlust ger 1 poäng.</div>
-            <div class="simple-list-item">Ordinarie förlust ger 0 poäng.</div>
+            <div class="simple-list-item">Vinst ger 3 poang i tabellen.</div>
+            <div class="simple-list-item">Overtidsforlust ger 1 poang.</div>
+            <div class="simple-list-item">Ordinarie forlust ger 0 poang.</div>
           </div>
         </article>
 
@@ -1125,7 +1199,7 @@ function renderCupRules(cup) {
             <h2>Tabellordning</h2>
           </div>
           <div class="simple-list">
-            <div class="simple-list-item">Tabellen sorteras på poäng, målskillnad och gjorda mål.</div>
+            <div class="simple-list-item">Tabellen sorteras pa poang, malskillnad och gjorda mal.</div>
             <div class="simple-list-item">Vid samma siffror visas lagen efter alfabetisk ordning i denna version.</div>
           </div>
         </article>
@@ -1136,9 +1210,9 @@ function renderCupRules(cup) {
             <h2>Visning</h2>
           </div>
           <div class="simple-list">
-            <div class="simple-list-item">Topplistor hämtas från registrerad spelar- och målvaktsstatistik.</div>
-            <div class="simple-list-item">Slutspelsträdet byggs av matcher markerade som slutspel.</div>
-            <div class="simple-list-item">Sidan kan enkelt bytas till exakta SEC-regler när de finns i datan.</div>
+            <div class="simple-list-item">Topplistor hamtas fran registrerad spelar- och malvaktsstatistik.</div>
+            <div class="simple-list-item">Slutspelstradet byggs av matcher markerade som slutspel.</div>
+            <div class="simple-list-item">Sidan kan enkelt bytas till exakta SEC-regler nar de finns i datan.</div>
           </div>
         </article>
       </div>
@@ -1178,14 +1252,14 @@ function renderMatchCard(match) {
         <strong>${displayScore(match.awayScore)} - ${displayScore(match.homeScore)}</strong>
         ${renderTeamIdentity(match.homeTeam)}
       </div>
-      <p class="match-summary">${escapeHtml(match.goalsSummary || "Ingen måltext registrerad.")}</p>
+      <p class="match-summary">${escapeHtml(match.goalsSummary || "Ingen maltext registrerad.")}</p>
     </article>
   `;
 }
 
 function renderStatsTable(headers, rows) {
   if (!rows.length) {
-    return `<div class="empty-state">Ingen data finns än.</div>`;
+    return `<div class="empty-state">Ingen data finns an.</div>`;
   }
 
   return `
@@ -1207,10 +1281,10 @@ function renderStatsTable(headers, rows) {
 function renderGlobalSearchModule() {
   return `
     <div class="player-search-centered home-search">
-      <div class="search-title">Sök lag &amp; spelare</div>
+      <div class="search-title">Sok lag &amp; spelare</div>
       <div class="search-wrapper">
-        <input id="globalSearch" placeholder="Sök lag eller spelare" autocomplete="off" aria-label="Sök lag eller spelare">
-        <div id="globalResults" role="listbox" aria-label="Sökresultat"></div>
+        <input id="globalSearch" placeholder="Sok lag eller spelare" autocomplete="off" aria-label="Sok lag eller spelare">
+        <div id="globalResults" role="listbox" aria-label="Sokresultat"></div>
       </div>
     </div>
   `;
@@ -1220,7 +1294,7 @@ function renderLoadingState() {
   return `
     <section class="tab-panel">
       <h2>Laddar</h2>
-      <div class="cup-status">Hämtar SEC-data...</div>
+      <div class="cup-status">Hamtar SEC-data...</div>
     </section>
   `;
 }
@@ -1855,7 +1929,7 @@ function sumBy(items, key) {
 }
 
 function showFatalError(error) {
-  const message = typeof error === "string" ? error : error?.message || "Ett oväntat fel uppstod.";
+  const message = typeof error === "string" ? error : error?.message || "Ett ovantat fel uppstod.";
   if (appView) {
     appView.innerHTML = renderErrorState("JavaScript-fel: " + message);
   }
