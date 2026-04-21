@@ -1100,6 +1100,7 @@ h3,
   gap: 10px;
   min-width: 0;
   color: #dff0ff;
+  white-space: nowrap;
 }
 
 .player-flag {
@@ -1129,7 +1130,8 @@ h3,
 .player-identity-text {
   display: block;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .table-wrap {
@@ -1139,6 +1141,7 @@ h3,
 .stats-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: auto;
 }
 
 .stats-table th,
@@ -1147,6 +1150,7 @@ h3,
   border-bottom: 1px solid rgba(214, 177, 95, 0.1);
   text-align: left;
   vertical-align: top;
+  white-space: nowrap;
 }
 
 .stats-table th {
@@ -1220,6 +1224,19 @@ h3,
 
 .stats-table tbody tr:hover {
   background: rgba(214, 177, 95, 0.05);
+}
+
+.stats-table td .team-identity,
+.stats-table td .player-inline-link {
+  min-width: 170px;
+}
+
+.stats-table td .team-identity {
+  display: inline-flex;
+}
+
+.stats-table td .team-identity-text {
+  white-space: normal;
 }
 
 .simple-list {
