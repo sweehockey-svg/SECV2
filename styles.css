@@ -1094,6 +1094,37 @@ h3,
   color: #dff0ff;
 }
 
+.player-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: #dff0ff;
+}
+
+.player-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(214, 177, 95, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.player-flag.is-missing::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
 .team-identity-text,
 .player-identity-text {
   display: block;
@@ -1124,6 +1155,67 @@ h3,
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.stats-sort-button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.stats-sort-button:hover {
+  color: #fff2c4;
+}
+
+.stats-sort-button.is-active {
+  color: #fff;
+}
+
+.stats-sort-icon {
+  position: relative;
+  width: 10px;
+  height: 14px;
+  opacity: 0.7;
+  flex: 0 0 auto;
+}
+
+.stats-sort-icon::before,
+.stats-sort-icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+}
+
+.stats-sort-icon::before {
+  top: 1px;
+  border-bottom: 5px solid currentColor;
+}
+
+.stats-sort-icon::after {
+  bottom: 1px;
+  border-top: 5px solid currentColor;
+}
+
+.stats-sort-button[data-sort-direction="asc"] .stats-sort-icon::after {
+  opacity: 0.25;
+}
+
+.stats-sort-button[data-sort-direction="desc"] .stats-sort-icon::before {
+  opacity: 0.25;
 }
 
 .stats-table tbody tr:hover {
