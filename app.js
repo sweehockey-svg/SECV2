@@ -2049,17 +2049,44 @@ function renderFlag(countryCode) {
 
 function countryCodeToEmoji(countryCode) {
   const normalized = String(countryCode || "").trim().toUpperCase();
+  const alpha2 = getAlpha2CountryCode(normalized);
 
-  if (!/^[A-Z]{2}$/.test(normalized)) {
+  if (!/^[A-Z]{2}$/.test(alpha2)) {
     return normalized || "";
   }
 
-  return normalized
+  return alpha2
     .split("")
     .map(function(letter) {
       return String.fromCodePoint(127397 + letter.charCodeAt(0));
     })
     .join("");
+}
+
+function getAlpha2CountryCode(countryCode) {
+  const map = {
+    SWE: "SE",
+    FIN: "FI",
+    NOR: "NO",
+    DNK: "DK",
+    DEN: "DK",
+    USA: "US",
+    CAN: "CA",
+    CZE: "CZ",
+    SVK: "SK",
+    DEU: "DE",
+    GER: "DE",
+    AUT: "AT",
+    CHE: "CH",
+    SUI: "CH",
+    LVA: "LV",
+    LTU: "LT",
+    EST: "EE",
+    GBR: "GB",
+    ENG: "GB"
+  };
+
+  return map[countryCode] || countryCode;
 }
 
 function normalizePercentageForSort(value) {
