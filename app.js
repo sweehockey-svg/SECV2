@@ -6,7 +6,7 @@ const DATA_SOURCES = {
 const FALLBACK_DATA = {
   cups: [
     {
-      id: 1,
+      id: "1",
       sortOrder: 1,
       code: "SEC 1",
       name: "Svenska eHockey Cupen 1",
@@ -21,8 +21,8 @@ const FALLBACK_DATA = {
           time: "20:00",
           awayTeam: "Frolunda",
           awayScore: 2,
-          homeScore: 3,
           homeTeam: "Lulea",
+          homeScore: 3,
           overtime: false,
           stage: "group",
           group: "Grupp A",
@@ -33,8 +33,8 @@ const FALLBACK_DATA = {
           time: "20:30",
           awayTeam: "Lulea",
           awayScore: 1,
-          homeScore: 4,
           homeTeam: "Frolunda",
+          homeScore: 4,
           overtime: false,
           stage: "playoffs",
           group: "Final",
@@ -60,6 +60,45 @@ const FALLBACK_DATA = {
           { player: "Mlv Frolunda", team: "Frolunda", gp: 1, sa: 22, ga: 1, sv: 21, gaa: 1, svp: 0.955, so: 0, playerId: "456" }
         ]
       }
+    },
+    {
+      id: "sommar-21",
+      sortOrder: 21.1,
+      code: "SEC Sommar 21",
+      name: "SEC Sommar 21",
+      badge: "Sommar",
+      placements: {
+        first: "Modo",
+        second: "Brynas"
+      },
+      matches: [
+        {
+          date: "2026-07-02",
+          time: "21:00",
+          awayTeam: "Modo",
+          awayScore: 5,
+          homeTeam: "Brynas",
+          homeScore: 2,
+          overtime: false,
+          stage: "playoffs",
+          group: "Final",
+          goalsSummary: "Modo avgjorde i tredje perioden."
+        }
+      ],
+      playerStats: {
+        group: [
+          { player: "Toivo", team: "Modo", gp: 3, g: 4, a: 2, pts: 6, pim: 0, playerId: "901" }
+        ],
+        playoffs: [
+          { player: "Toivo", team: "Modo", gp: 1, g: 2, a: 1, pts: 3, pim: 0, playerId: "901" }
+        ]
+      },
+      goalieStats: {
+        group: [],
+        playoffs: [
+          { player: "Jemmmuu", team: "Modo", gp: 1, sa: 25, ga: 2, sv: 23, gaa: 2, svp: 0.92, so: 0, playerId: "902" }
+        ]
+      }
     }
   ]
 };
@@ -81,7 +120,11 @@ window.addEventListener("unhandledrejection", function(event) {
   showFatalError(event.reason || "Ohanterat fel i Promise.");
 });
 
-init();
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
 
 async function init() {
   try {
@@ -96,28 +139,33 @@ async function init() {
     renderCurrentRoute();
   } catch (error) {
     console.error(error);
-    setView(renderErrorState("Kunde inte ladda SEC-data. Kontrollera config.js och JSON-filerna."));
+    state.cups = normalizeCups(FALLBACK_DATA.cups);
+    state.teams = buildTeams(state.cups);
+    state.players = buildPlayers(state.cups);
+    state.ready = true;
+    renderCurrentRoute();
   }
 }
 
 async function loadCups() {
-  const datasets = await Promise.all([
+  const results = await Promise.allSettled([
     loadSource(DATA_SOURCES.sheet),
     loadSource(DATA_SOURCES.database)
   ]);
 
   const merged = [];
 
-  datasets.forEach(function(dataset) {
-    if (Array.isArray(dataset)) {
-      merged.push.apply(merged, dataset);
+  results.forEach(function(result) {
+    if (result.status === "fulfilled" && Array.isArray(result.value)) {
+      merged.push.apply(merged, result.value);
     }
   });
 
   const deduped = new Map();
 
   merged.forEach(function(cup) {
-    deduped.set(String(cup.id), cup);
+    const key = String(cup.id || cup.code || cup.name || Math.random());
+    deduped.set(key, cup);
   });
 
   if (!deduped.size) {
@@ -132,67 +180,74 @@ async function loadSource(url) {
     return [];
   }
 
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) {
     throw new Error("Request failed for " + url);
   }
 
   const data = await response.json();
-  return Array.isArray(data) ? data : data.cups || [];
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (Array.isArray(data.cups)) {
+    return data.cups;
+  }
+  return [];
 }
 
 function normalizeCups(cups) {
   return cups
-    .map(function(cup) {
-      const allPlayerStats = []
-        .concat(cup.playerStats?.group || [])
-        .concat(cup.playerStats?.playoffs || []);
-      const allGoalieStats = []
-        .concat(cup.goalieStats?.group || [])
-        .concat(cup.goalieStats?.playoffs || []);
+    .map(function(cup, index) {
+      const groupPlayers = normalizePlayerRows(cup.playerStats?.group || [], "group");
+      const playoffPlayers = normalizePlayerRows(cup.playerStats?.playoffs || [], "playoffs");
+      const groupGoalies = normalizeGoalieRows(cup.goalieStats?.group || [], "group");
+      const playoffGoalies = normalizeGoalieRows(cup.goalieStats?.playoffs || [], "playoffs");
+      const allPlayerStats = groupPlayers.concat(playoffPlayers);
+      const allGoalieStats = groupGoalies.concat(playoffGoalies);
       const topScorer = allPlayerStats
         .slice()
         .sort(function(a, b) {
-          return (toNumber(b.pts) - toNumber(a.pts)) || (toNumber(b.g) - toNumber(a.g));
-        })[0];
+          return (b.pts - a.pts) || (b.g - a.g) || a.player.localeCompare(b.player, "sv");
+        })[0] || null;
 
-      const normalizedMatches = (cup.matches || []).map(function(match, index) {
+      const normalizedMatches = (cup.matches || []).map(function(match, matchIndex) {
         return {
-          id: createMatchId(cup.id, index),
-          date: match.date || null,
-          time: match.time || null,
+          id: createMatchId(cup.id || index + 1, matchIndex),
+          date: match.date || "",
+          time: match.time || "",
           awayTeam: match.awayTeam || "Okant lag",
           awayScore: toNullableNumber(match.awayScore),
           homeScore: toNullableNumber(match.homeScore),
           homeTeam: match.homeTeam || "Okant lag",
           overtime: Boolean(match.overtime),
           stage: normalizeStage(match.stage),
-          group: match.group || null,
+          group: match.group || "",
           goalsSummary: match.goalsSummary || ""
         };
       });
 
       return {
-        id: String(cup.id),
-        sortOrder: typeof cup.sortOrder === "number" ? cup.sortOrder : inferSortOrder(cup.id),
-        code: cup.code || "SEC " + cup.id,
-        name: cup.name || "Svenska eHockey Cupen " + cup.id,
-        badge: cup.badge || "Historik",
-        winner: cup.placements?.first || "Ej klar",
-        runnerUp: cup.placements?.second || "Ej klar",
-        placements: cup.placements || { first: null, second: null },
+        id: String(cup.id || index + 1),
+        sortOrder: typeof cup.sortOrder === "number" ? cup.sortOrder : inferSortOrder(cup.code || cup.name || cup.id || index + 1),
+        code: String(cup.code || ("SEC " + (index + 1))),
+        name: String(cup.name || cup.code || ("Svenska eHockey Cupen " + (index + 1))),
+        badge: String(cup.badge || ""),
+        winner: String(cup.placements?.first || "Ej klar"),
+        runnerUp: String(cup.placements?.second || "Ej klar"),
+        placements: {
+          first: cup.placements?.first || "",
+          second: cup.placements?.second || ""
+        },
         matches: normalizedMatches,
         playerStats: {
-          group: normalizePlayerRows(cup.playerStats?.group || [], "group"),
-          playoffs: normalizePlayerRows(cup.playerStats?.playoffs || [], "playoffs")
+          group: groupPlayers,
+          playoffs: playoffPlayers
         },
         goalieStats: {
-          group: normalizeGoalieRows(cup.goalieStats?.group || [], "group"),
-          playoffs: normalizeGoalieRows(cup.goalieStats?.playoffs || [], "playoffs")
+          group: groupGoalies,
+          playoffs: playoffGoalies
         },
         matchCount: normalizedMatches.length,
-        playerCount: allPlayerStats.length,
-        goalieCount: allGoalieStats.length,
         topScorer: topScorer ? formatPlayerLabel(topScorer) : "Ingen data an"
       };
     })
@@ -204,15 +259,15 @@ function normalizeCups(cups) {
 function normalizePlayerRows(rows, stage) {
   return rows.map(function(row) {
     return {
-      player: row.player || "Okand spelare",
-      team: row.team || "Okant lag",
+      player: String(row.player || "Okand spelare"),
+      team: String(row.team || "Okant lag"),
       gp: toNumber(row.gp),
       g: toNumber(row.g),
       a: toNumber(row.a),
       pts: toNumber(row.pts),
       pim: toNumber(row.pim),
-      playerId: row.playerId ? String(row.playerId) : null,
-      stage
+      playerId: row.playerId ? String(row.playerId) : "",
+      stage: stage
     };
   });
 }
@@ -220,8 +275,8 @@ function normalizePlayerRows(rows, stage) {
 function normalizeGoalieRows(rows, stage) {
   return rows.map(function(row) {
     return {
-      player: row.player || "Okand malvakt",
-      team: row.team || "Okant lag",
+      player: String(row.player || "Okand malvakt"),
+      team: String(row.team || "Okant lag"),
       gp: toNumber(row.gp),
       sa: toNumber(row.sa),
       ga: toNumber(row.ga),
@@ -229,123 +284,67 @@ function normalizeGoalieRows(rows, stage) {
       gaa: toNumber(row.gaa),
       svp: row.svp === null || typeof row.svp === "undefined" ? null : Number(row.svp),
       so: toNumber(row.so),
-      playerId: row.playerId ? String(row.playerId) : null,
-      stage
+      playerId: row.playerId ? String(row.playerId) : "",
+      stage: stage
     };
   });
 }
 
 function buildTeams(cups) {
-  const teamMap = new Map();
+  const map = new Map();
 
   cups.forEach(function(cup) {
-    const teamNames = new Set();
+    const rows = []
+      .concat(cup.playerStats.group)
+      .concat(cup.playerStats.playoffs)
+      .concat(cup.goalieStats.group)
+      .concat(cup.goalieStats.playoffs);
 
     cup.matches.forEach(function(match) {
-      teamNames.add(match.homeTeam);
-      teamNames.add(match.awayTeam);
+      ensureTeam(map, match.homeTeam);
+      ensureTeam(map, match.awayTeam);
+
+      addMatchToTeam(map.get(createTeamKey(match.homeTeam)), cup, match, true);
+      addMatchToTeam(map.get(createTeamKey(match.awayTeam)), cup, match, false);
     });
 
-    cup.playerStats.group.concat(cup.playerStats.playoffs).forEach(function(row) {
-      teamNames.add(row.team);
-    });
-
-    cup.goalieStats.group.concat(cup.goalieStats.playoffs).forEach(function(row) {
-      teamNames.add(row.team);
-    });
-
-    teamNames.forEach(function(teamName) {
-      const key = createTeamKey(teamName);
-      if (!teamMap.has(key)) {
-        teamMap.set(key, {
-          key,
-          name: teamName,
-          cups: [],
-          matches: [],
-          playerRows: [],
-          goalieRows: [],
-          wins: 0,
-          losses: 0,
-          otLosses: 0,
-          goalsFor: 0,
-          goalsAgainst: 0
-        });
-      }
-
-      const team = teamMap.get(key);
+    rows.forEach(function(row) {
+      ensureTeam(map, row.team);
+      const team = map.get(createTeamKey(row.team));
       team.cups.push({ id: cup.id, code: cup.code, name: cup.name });
 
-      cup.matches.forEach(function(match) {
-        if (match.homeTeam !== teamName && match.awayTeam !== teamName) {
-          return;
-        }
-
-        team.matches.push({
+      if (typeof row.g !== "undefined") {
+        team.playerRows.push({
           cupId: cup.id,
           cupCode: cup.code,
-          opponent: match.homeTeam === teamName ? match.awayTeam : match.homeTeam,
-          isHome: match.homeTeam === teamName,
-          goalsFor: match.homeTeam === teamName ? match.homeScore : match.awayScore,
-          goalsAgainst: match.homeTeam === teamName ? match.awayScore : match.homeScore,
-          overtime: match.overtime,
-          date: match.date,
-          time: match.time,
-          stage: match.stage
+          player: row.player,
+          playerId: row.playerId,
+          gp: row.gp,
+          g: row.g,
+          a: row.a,
+          pts: row.pts,
+          pim: row.pim,
+          stage: row.stage
         });
-
-        const goalsFor = match.homeTeam === teamName ? match.homeScore : match.awayScore;
-        const goalsAgainst = match.homeTeam === teamName ? match.awayScore : match.homeScore;
-
-        team.goalsFor += toNumber(goalsFor);
-        team.goalsAgainst += toNumber(goalsAgainst);
-
-        if (goalsFor > goalsAgainst) {
-          team.wins += 1;
-        } else if (match.overtime) {
-          team.otLosses += 1;
-        } else {
-          team.losses += 1;
-        }
-      });
-
-      cup.playerStats.group.concat(cup.playerStats.playoffs).forEach(function(row) {
-        if (row.team === teamName) {
-          team.playerRows.push({
-            cupId: cup.id,
-            cupCode: cup.code,
-            player: row.player,
-            playerId: row.playerId,
-            gp: row.gp,
-            g: row.g,
-            a: row.a,
-            pts: row.pts,
-            pim: row.pim,
-            stage: row.stage
-          });
-        }
-      });
-
-      cup.goalieStats.group.concat(cup.goalieStats.playoffs).forEach(function(row) {
-        if (row.team === teamName) {
-          team.goalieRows.push({
-            cupId: cup.id,
-            cupCode: cup.code,
-            player: row.player,
-            playerId: row.playerId,
-            gp: row.gp,
-            svp: row.svp,
-            gaa: row.gaa,
-            sv: row.sv,
-            ga: row.ga,
-            so: row.so,
-            stage: row.stage
-          });
-        }
-      });
+      } else {
+        team.goalieRows.push({
+          cupId: cup.id,
+          cupCode: cup.code,
+          player: row.player,
+          playerId: row.playerId,
+          gp: row.gp,
+          svp: row.svp,
+          gaa: row.gaa,
+          sv: row.sv,
+          ga: row.ga,
+          so: row.so,
+          stage: row.stage
+        });
+      }
     });
   });
 
-  return Array.from(teamMap.values())
+  return Array.from(map.values())
     .map(function(team) {
       team.cups = uniqueBy(team.cups, "id").sort(function(a, b) {
         return inferSortOrder(b.id) - inferSortOrder(a.id);
@@ -358,26 +357,70 @@ function buildTeams(cups) {
     });
 }
 
+function ensureTeam(map, teamName) {
+  const key = createTeamKey(teamName);
+  if (!map.has(key)) {
+    map.set(key, {
+      key: key,
+      name: teamName,
+      cups: [],
+      matches: [],
+      playerRows: [],
+      goalieRows: [],
+      wins: 0,
+      losses: 0,
+      otLosses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0
+    });
+  }
+}
+
+function addMatchToTeam(team, cup, match, isHome) {
+  if (!team) {
+    return;
+  }
+
+  const goalsFor = isHome ? match.homeScore : match.awayScore;
+  const goalsAgainst = isHome ? match.awayScore : match.homeScore;
+
+  team.cups.push({ id: cup.id, code: cup.code, name: cup.name });
+  team.matches.push({
+    cupId: cup.id,
+    cupCode: cup.code,
+    opponent: isHome ? match.awayTeam : match.homeTeam,
+    isHome: isHome,
+    goalsFor: goalsFor,
+    goalsAgainst: goalsAgainst,
+    overtime: match.overtime,
+    date: match.date,
+    time: match.time,
+    stage: match.stage
+  });
+
+  team.goalsFor += toNumber(goalsFor);
+  team.goalsAgainst += toNumber(goalsAgainst);
+
+  if (toNumber(goalsFor) > toNumber(goalsAgainst)) {
+    team.wins += 1;
+  } else if (match.overtime) {
+    team.otLosses += 1;
+  } else {
+    team.losses += 1;
+  }
+}
+
 function buildPlayers(cups) {
-  const playerMap = new Map();
+  const map = new Map();
 
   cups.forEach(function(cup) {
     cup.playerStats.group.concat(cup.playerStats.playoffs).forEach(function(row) {
       const key = createPlayerKey(row);
-      if (!playerMap.has(key)) {
-        playerMap.set(key, {
-          key,
-          playerId: row.playerId || null,
-          name: row.player,
-          teamNames: new Set(),
-          cups: [],
-          skaterRows: [],
-          goalieRows: [],
-          totals: { gp: 0, g: 0, a: 0, pts: 0, pim: 0 }
-        });
+      if (!map.has(key)) {
+        map.set(key, createEmptyPlayer(row, key));
       }
 
-      const player = playerMap.get(key);
+      const player = map.get(key);
       player.teamNames.add(row.team);
       player.cups.push({ id: cup.id, code: cup.code });
       player.skaterRows.push({
@@ -400,20 +443,11 @@ function buildPlayers(cups) {
 
     cup.goalieStats.group.concat(cup.goalieStats.playoffs).forEach(function(row) {
       const key = createPlayerKey(row);
-      if (!playerMap.has(key)) {
-        playerMap.set(key, {
-          key,
-          playerId: row.playerId || null,
-          name: row.player,
-          teamNames: new Set(),
-          cups: [],
-          skaterRows: [],
-          goalieRows: [],
-          totals: { gp: 0, g: 0, a: 0, pts: 0, pim: 0 }
-        });
+      if (!map.has(key)) {
+        map.set(key, createEmptyPlayer(row, key));
       }
 
-      const player = playerMap.get(key);
+      const player = map.get(key);
       player.teamNames.add(row.team);
       player.cups.push({ id: cup.id, code: cup.code });
       player.goalieRows.push({
@@ -432,7 +466,7 @@ function buildPlayers(cups) {
     });
   });
 
-  return Array.from(playerMap.values())
+  return Array.from(map.values())
     .map(function(player) {
       player.teamNames = Array.from(player.teamNames).sort(function(a, b) {
         return a.localeCompare(b, "sv");
@@ -447,63 +481,56 @@ function buildPlayers(cups) {
     });
 }
 
-function renderCurrentRoute() {
-  try {
-    if (!state.ready) {
-      setView(renderLoadingState());
-      return;
-    }
-
-    const route = parseRoute();
-
-    if (route.type === "home") {
-      setView(renderHomePage());
-      return;
-    }
-
-    if (route.type === "cups") {
-      setView(renderCupsIndex());
-      return;
-    }
-
-    if (route.type === "cup") {
-      const cup = state.cups.find(function(entry) { return entry.id === route.id; });
-      setView(cup ? renderCupPage(cup) : renderNotFound("Cupen kunde inte hittas."));
-      return;
-    }
-
-    if (route.type === "teams") {
-      setView(renderTeamsIndex());
-      return;
-    }
-
-    if (route.type === "team") {
-      const team = state.teams.find(function(entry) { return entry.key === route.id; });
-      setView(team ? renderTeamPage(team) : renderNotFound("Laget kunde inte hittas."));
-      return;
-    }
-
-    if (route.type === "players") {
-      setView(renderPlayersIndex());
-      return;
-    }
-
-    if (route.type === "player") {
-      const player = state.players.find(function(entry) { return entry.key === route.id; });
-      setView(player ? renderPlayerPage(player) : renderNotFound("Spelaren kunde inte hittas."));
-      return;
-    }
-
-    setView(renderNotFound("Sidan kunde inte hittas."));
-  } catch (error) {
-    console.error(error);
-    showFatalError(error);
-  }
+function createEmptyPlayer(row, key) {
+  return {
+    key: key,
+    playerId: row.playerId || "",
+    name: row.player,
+    teamNames: new Set(),
+    cups: [],
+    skaterRows: [],
+    goalieRows: [],
+    totals: { gp: 0, g: 0, a: 0, pts: 0, pim: 0 }
+  };
 }
+
+function renderCurrentRoute() {
+  if (!state.ready) {
+    setView(renderLoadingState());
+    return;
+  }
+
+  const route = parseRoute();
+  let html = "";
+
+  if (route.type === "home") {
+    html = renderHomePage();
+  } else if (route.type === "cups") {
+    html = renderCupsIndex();
+  } else if (route.type === "cup") {
+    const cup = state.cups.find(function(entry) { return entry.id === route.id; });
+    html = cup ? renderCupPage(cup) : renderNotFound("Cupen kunde inte hittas.");
+  } else if (route.type === "teams") {
+    html = renderTeamsIndex();
+  } else if (route.type === "team") {
+    const team = state.teams.find(function(entry) { return entry.key === route.id; });
+    html = team ? renderTeamPage(team) : renderNotFound("Laget kunde inte hittas.");
+  } else if (route.type === "players") {
+    html = renderPlayersIndex();
+  } else if (route.type === "player") {
+    const player = state.players.find(function(entry) { return entry.key === route.id; });
+    html = player ? renderPlayerPage(player) : renderNotFound("Spelaren kunde inte hittas.");
+  } else {
+    html = renderNotFound("Sidan kunde inte hittas.");
+  }
+
+  setView(html);
+  updateNavState(route);
+}
+
 function renderHomePage() {
   const categories = splitCupsByCategory(state.cups);
   const totalMatches = sumBy(state.cups, "matchCount");
-  const totalTeams = state.teams.length;
 
   return `
     <section class="sec-index-shell">
@@ -520,21 +547,20 @@ function renderHomePage() {
       <section class="tab-panel info-panel">
         <h2>Valkommen</h2>
         <p>
-          Valkommen till Svenska eHockey Cupen, en samlad hubb for SEC med matcher, tabeller,
-          slutspel, lag och spelarstatistik i samma arkiv. Har bygger vi vidare pa samma upplagg
-          som din nuvarande sida, men kopplar det till den nya datamodellen sa att varje cup blir
-          enklare att uppdatera och enklare att hitta i.
+          Valkommen till Svenska eHockey Cupen, en samlad hubb for matcher, tabeller,
+          slutspel, lag och spelarstatistik. Startsidan ska ligga narmare din gamla SEC-sida,
+          men vara enklare att bygga vidare pa i den nya strukturen.
         </p>
         <p>
           Just nu finns <strong>${state.cups.length}</strong> cuper, <strong>${totalMatches}</strong> matcher,
-          <strong>${totalTeams}</strong> lag och <strong>${state.players.length}</strong> spelare i arkivet.
+          <strong>${state.teams.length}</strong> lag och <strong>${state.players.length}</strong> spelare i arkivet.
         </p>
       </section>
 
       <section class="tab-panel cups-panel">
         <h2>Valj turnering</h2>
         <div class="cup-status">
-          Visar ${state.cups.length} cup${state.cups.length === 1 ? "" : "er"} (SEC: ${categories.regular.length}, Sommar: ${categories.sommar.length}${categories.challenger.length ? ", Challenger: " + categories.challenger.length : ""}).
+          Visar ${state.cups.length} cup${state.cups.length === 1 ? "" : "er"}.
         </div>
 
         <div class="cup-section">
@@ -568,7 +594,7 @@ function renderHomePage() {
         <div class="sec-footer-glow"></div>
         <div id="sec-footer-line"></div>
         <div id="sec-footer-text">
-          Â© 2026 <span>Svenska eHockey Cupen</span> | Design & utveckling av <span>Svensk eHockey</span>
+          © 2026 <span>Svenska eHockey Cupen</span> | Design & utveckling av <span>Svensk eHockey</span>
         </div>
       </footer>
     </section>
@@ -579,10 +605,10 @@ function renderCupsIndex() {
   const categories = splitCupsByCategory(state.cups);
 
   return `
-    <section class="tab-panel cups-panel cups-panel-archive">
+    <section class="tab-panel cups-panel">
       <h2>Alla SEC-cuper</h2>
       <div class="cup-status">
-        Hela arkivet med alla cuper, sommarupplagor och challenger-turneringar.
+        Hela arkivet med ordinarie cuper, sommarcuper och challengerupplagor.
       </div>
 
       <div class="cup-section">
@@ -615,8 +641,8 @@ function renderCupsIndex() {
 }
 
 function renderCupPage(cup) {
-  const groupStandings = buildGroupStandings(cup.matches);
   const overview = getCupOverview(cup);
+  const groupStandings = buildGroupStandings(cup.matches);
 
   return `
     <section class="cup-hero">
@@ -630,12 +656,9 @@ function renderCupPage(cup) {
         </div>
         <p class="eyebrow">${escapeHtml(cup.code)}</p>
         <h1 class="page-title">${escapeHtml(cup.name)}</h1>
-        <p class="page-intro">En egen SEC-sida for hela turneringen med oversikt, gruppspel, slutspel, lag, poangliga och alla matchresultat.</p>
-        <div class="cup-hero-actions">
-          <a class="button button-primary" href="#cup-overview">Oversikt</a>
-          <a class="button button-secondary" href="#cup-matches">Matcher</a>
-          <a class="button button-secondary" href="#cup-stats">Statistik</a>
-        </div>
+        <p class="page-intro">
+          Cupsidan visar oversikt, tabeller, lag, topplistor och matcher for den valda turneringen.
+        </p>
         <div class="summary-ribbon">
           <span>${overview.teams.length} lag</span>
           <span>${overview.groupMatches.length} gruppmatcher</span>
@@ -644,7 +667,7 @@ function renderCupPage(cup) {
       </div>
 
       <aside class="cup-hero-side">
-        <p class="entity-label">Finalbild</p>
+        <p class="entity-label">Final</p>
         <div class="cup-finals">
           <div class="cup-finals-team">
             ${renderTeamLogo(cup.winner, "team-logo-lg")}
@@ -658,31 +681,10 @@ function renderCupPage(cup) {
             <span>Finalist</span>
           </div>
         </div>
-        <div class="cup-side-note">
-          ${overview.featuredMatch ? renderCompactMatchSummary(overview.featuredMatch) : `<div class="empty-state">Ingen featured match an.</div>`}
-        </div>
       </aside>
     </section>
 
-    <nav class="cup-subnav">
-      <div class="breadcrumbs">
-        <a href="#cup-overview">Oversikt</a>
-        <a href="#cup-tables">Tabeller</a>
-        <a href="#cup-teams">Lag</a>
-        <a href="#cup-stats">Statistik</a>
-        <a href="#cup-matches">Matcher</a>
-      </div>
-    </nav>
-
-    <section class="detail-grid" id="cup-overview">
-      <article class="detail-card hero-stat-card">
-        <span class="detail-label">Vinnare</span>
-        <strong>${escapeHtml(cup.winner)}</strong>
-      </article>
-      <article class="detail-card hero-stat-card">
-        <span class="detail-label">Finalist</span>
-        <strong>${escapeHtml(cup.runnerUp)}</strong>
-      </article>
+    <section class="detail-grid">
       <article class="detail-card hero-stat-card">
         <span class="detail-label">Matcher</span>
         <strong>${cup.matchCount}</strong>
@@ -691,58 +693,29 @@ function renderCupPage(cup) {
         <span class="detail-label">Poangkung</span>
         <strong>${escapeHtml(cup.topScorer)}</strong>
       </article>
+      <article class="detail-card hero-stat-card">
+        <span class="detail-label">Vinnare</span>
+        <strong>${escapeHtml(cup.winner)}</strong>
+      </article>
+      <article class="detail-card hero-stat-card">
+        <span class="detail-label">Finalist</span>
+        <strong>${escapeHtml(cup.runnerUp)}</strong>
+      </article>
     </section>
 
-    <section class="section two-column-section">
+    <section class="two-column-section">
       <article class="detail-card">
         <div class="section-heading compact">
-          <p class="eyebrow">Turneringsbild</p>
-          <h2>Snabb oversikt</h2>
+          <p class="eyebrow">Tabeller</p>
+          <h2>Gruppspel</h2>
         </div>
-        <div class="simple-list">
-          <div class="simple-list-item muted-item">Badge: ${escapeHtml(cup.badge)}</div>
-          <div class="simple-list-item muted-item">Lag i cupen: ${overview.teams.length}</div>
-          <div class="simple-list-item muted-item">Gruppspel: ${overview.groupMatches.length} matcher</div>
-          <div class="simple-list-item muted-item">Slutspel: ${overview.playoffMatches.length} matcher</div>
-          <div class="simple-list-item muted-item">Spelarposter: ${cup.playerStats.group.length + cup.playerStats.playoffs.length}</div>
-          <div class="simple-list-item muted-item">Malvaktsrader: ${cup.goalieStats.group.length + cup.goalieStats.playoffs.length}</div>
-        </div>
+        ${groupStandings.length ? groupStandings.map(renderStandingsTable).join("") : `<div class="empty-state">Ingen gruppstatistik finns an.</div>`}
       </article>
 
       <article class="detail-card">
         <div class="section-heading compact">
-          <p class="eyebrow">Featured match</p>
-          <h2>Match i fokus</h2>
-        </div>
-        ${overview.featuredMatch ? renderFeaturedMatchCard(overview.featuredMatch) : `<div class="empty-state">Ingen featured match finns an.</div>`}
-      </article>
-    </section>
-
-    <section class="section" id="cup-tables">
-      <div class="section-heading">
-        <p class="eyebrow">Tabeller</p>
-        <h2>Gruppstallningar</h2>
-      </div>
-      <div class="stack-grid">
-        ${groupStandings.length ? groupStandings.map(renderStandingsTable).join("") : `<div class="empty-state">Det finns inte tillrackligt med matchdata for att rakna fram en tabell an.</div>`}
-      </div>
-    </section>
-
-    <section class="section" id="cup-teams">
-      <div class="section-heading">
-        <p class="eyebrow">Lag</p>
-        <h2>Deltagande lag</h2>
-      </div>
-      <div class="entity-grid">
-        ${overview.teams.map(renderTeamMiniCard).join("")}
-      </div>
-    </section>
-
-    <section class="section two-column-section" id="cup-stats">
-      <article class="detail-card">
-        <div class="section-heading compact">
-          <p class="eyebrow">Poangliga</p>
-          <h2>Toppspelare</h2>
+          <p class="eyebrow">Topplista</p>
+          <h2>Poangliga</h2>
         </div>
         ${renderStatsTable(
           ["Spelare", "Lag", "GP", "G", "A", "PTS"],
@@ -758,29 +731,9 @@ function renderCupPage(cup) {
           })
         )}
       </article>
-
-      <article class="detail-card">
-        <div class="section-heading compact">
-          <p class="eyebrow">Malvakter</p>
-          <h2>Toppmalvakter</h2>
-        </div>
-        ${renderStatsTable(
-          ["Spelare", "Lag", "GP", "SV%", "GAA", "SO"],
-          overview.topGoalies.map(function(row) {
-            return [
-              renderPlayerLink(row),
-              renderTeamLink(row.team),
-              row.gp,
-              formatPercentage(row.svp),
-              formatDecimal(row.gaa),
-              row.so
-            ];
-          })
-        )}
-      </article>
     </section>
 
-    <section class="section" id="cup-matches">
+    <section class="section">
       <div class="section-heading">
         <p class="eyebrow">Matcher</p>
         <h2>Matchcenter</h2>
@@ -788,7 +741,7 @@ function renderCupPage(cup) {
       <div class="stage-stack">
         ${overview.playoffMatches.length ? renderMatchCollection("Slutspel", overview.playoffMatches) : ""}
         ${overview.groupMatches.length ? renderMatchCollection("Gruppspel", overview.groupMatches) : ""}
-        ${!cup.matches.length ? `<div class="empty-state">Inga matcher finns registrerade for den har cupen an.</div>` : ""}
+        ${!cup.matches.length ? `<div class="empty-state">Inga matcher finns registrerade for den har cupen.</div>` : ""}
       </div>
     </section>
   `;
@@ -799,7 +752,7 @@ function renderTeamsIndex() {
     <section class="section-header-block">
       <p class="eyebrow">Lagregister</p>
       <h1 class="page-title">Alla lag</h1>
-      <p class="page-intro">Klicka in pa ett lag for att se cuphistorik, malskillnad, spelartrupp och malvakter.</p>
+      <p class="page-intro">Klicka in pa ett lag for att se cuper, matcher och spelare.</p>
     </section>
     <section class="entity-grid">
       ${state.teams.map(renderTeamCard).join("")}
@@ -810,12 +763,10 @@ function renderTeamsIndex() {
 function renderTeamPage(team) {
   const topScorers = team.playerRows
     .slice()
-    .sort(function(a, b) { return b.pts - a.pts || b.g - a.g; })
-    .slice(0, 12);
-  const topGoalies = team.goalieRows
-    .slice()
-    .sort(function(a, b) { return safeNumber(b.svp) - safeNumber(a.svp) || safeNumber(a.gaa) - safeNumber(b.gaa); })
-    .slice(0, 8);
+    .sort(function(a, b) {
+      return b.pts - a.pts || b.g - a.g || a.player.localeCompare(b.player, "sv");
+    })
+    .slice(0, 10);
 
   return `
     <section class="section-header-block">
@@ -831,7 +782,7 @@ function renderTeamPage(team) {
         <div>
           <p class="eyebrow">Lagprofil</p>
           <h1 class="page-title">${escapeHtml(team.name)}</h1>
-          <p class="page-intro">Historik over matcher, cuper och spelare for laget.</p>
+          <p class="page-intro">Matcher, cuper och spelarproduktion for laget.</p>
         </div>
       </div>
     </section>
@@ -839,41 +790,15 @@ function renderTeamPage(team) {
     <section class="detail-grid">
       <article class="detail-card hero-stat-card"><span class="detail-label">Cuper</span><strong>${team.cups.length}</strong></article>
       <article class="detail-card hero-stat-card"><span class="detail-label">Vinster</span><strong>${team.wins}</strong></article>
-      <article class="detail-card hero-stat-card"><span class="detail-label">Malskillnad</span><strong>${team.goalsFor - team.goalsAgainst}</strong></article>
-      <article class="detail-card hero-stat-card"><span class="detail-label">Mal</span><strong>${team.goalsFor}-${team.goalsAgainst}</strong></article>
+      <article class="detail-card hero-stat-card"><span class="detail-label">Mal for</span><strong>${team.goalsFor}</strong></article>
+      <article class="detail-card hero-stat-card"><span class="detail-label">Mal emot</span><strong>${team.goalsAgainst}</strong></article>
     </section>
 
-    <section class="section two-column-section">
+    <section class="two-column-section">
       <article class="detail-card">
         <div class="section-heading compact">
-          <p class="eyebrow">Cuper</p>
-          <h2>Lagets cuper</h2>
-        </div>
-        <div class="simple-list">
-          ${team.cups.map(function(cup) {
-            return `<a class="simple-list-item" href="#/cup/${encodeURIComponent(cup.id)}">${escapeHtml(cup.code)}</a>`;
-          }).join("")}
-        </div>
-      </article>
-
-      <article class="detail-card">
-        <div class="section-heading compact">
-          <p class="eyebrow">Form</p>
-          <h2>Senaste matcher</h2>
-        </div>
-        <div class="simple-list">
-          ${team.matches.slice(0, 8).map(function(match) {
-            return `<div class="simple-list-item muted-item">${escapeHtml(match.cupCode)}: ${match.goalsFor}-${match.goalsAgainst} mot ${escapeHtml(match.opponent)}</div>`;
-          }).join("") || `<div class="empty-state">Inga matcher hittades.</div>`}
-        </div>
-      </article>
-    </section>
-
-    <section class="section two-column-section">
-      <article class="detail-card">
-        <div class="section-heading compact">
-          <p class="eyebrow">Spelare</p>
-          <h2>Poangproduktion</h2>
+          <p class="eyebrow">Poangproduktion</p>
+          <h2>Toppspelare</h2>
         </div>
         ${renderStatsTable(
           ["Spelare", "Cup", "GP", "G", "A", "PTS"],
@@ -892,22 +817,14 @@ function renderTeamPage(team) {
 
       <article class="detail-card">
         <div class="section-heading compact">
-          <p class="eyebrow">Malvakter</p>
-          <h2>Malvaktsrad</h2>
+          <p class="eyebrow">Senaste matcher</p>
+          <h2>Matchlista</h2>
         </div>
-        ${renderStatsTable(
-          ["Spelare", "Cup", "GP", "SV%", "GAA", "SO"],
-          topGoalies.map(function(row) {
-            return [
-              renderPlayerLink(row),
-              renderCupLink(row.cupId, row.cupCode),
-              row.gp,
-              formatPercentage(row.svp),
-              formatDecimal(row.gaa),
-              row.so
-            ];
-          })
-        )}
+        <div class="simple-list">
+          ${team.matches.length ? team.matches.slice(0, 10).map(function(match) {
+            return `<div class="simple-list-item">${escapeHtml(match.cupCode)}: ${displayScore(match.goalsFor)}-${displayScore(match.goalsAgainst)} mot ${escapeHtml(match.opponent)}</div>`;
+          }).join("") : `<div class="empty-state">Inga matcher hittades.</div>`}
+        </div>
       </article>
     </section>
   `;
@@ -916,35 +833,37 @@ function renderTeamPage(team) {
 function renderPlayersIndex() {
   const topPlayers = state.players
     .slice()
-    .sort(function(a, b) { return b.totals.pts - a.totals.pts || a.name.localeCompare(b.name, "sv"); })
-    .slice(0, 80);
+    .sort(function(a, b) {
+      return b.totals.pts - a.totals.pts || a.name.localeCompare(b.name, "sv");
+    });
 
   return `
     <section class="section-header-block">
       <p class="eyebrow">Spelarregister</p>
       <h1 class="page-title">Alla spelare</h1>
-      <p class="page-intro">Klicka pa en spelare for att se cuphistorik, total statistik och tillhorande lag.</p>
+      <p class="page-intro">Klicka pa en spelare for att se total statistik och laghistorik.</p>
     </section>
     <section class="detail-card">
-      ${topPlayers.length ? renderStatsTable(
+      ${renderStatsTable(
         ["Spelare", "Lag", "Cuper", "GP", "PTS"],
         topPlayers.map(function(player) {
           return [
             renderPlayerIdentity(player),
             escapeHtml(player.teamNames.join(", ")),
             player.cups.length,
-            player.totals.gp,
-            player.totals.pts
+            player.totals.gp || sumBy(player.goalieRows, "gp"),
+            player.totals.pts || 0
           ];
         })
-      ) : `<div class="empty-state">Det finns inga spelare att visa an.</div>`}
+      )}
     </section>
   `;
 }
 
 function renderPlayerPage(player) {
-  const isGoalieOnly = player.skaterRows.length === 0 && player.goalieRows.length > 0;
+  const goalieGames = sumBy(player.goalieRows, "gp");
   const latestTeam = player.teamNames[0] || "Okant lag";
+  const isGoalieOnly = player.skaterRows.length === 0 && player.goalieRows.length > 0;
 
   return `
     <section class="section-header-block">
@@ -960,7 +879,7 @@ function renderPlayerPage(player) {
         <div>
           <p class="eyebrow">${isGoalieOnly ? "Malvaktsprofil" : "Spelarprofil"}</p>
           <h1 class="page-title">${escapeHtml(player.name)}</h1>
-          <p class="page-intro">Statistik over alla registrerade SEC-cuper, lag och prestationer.</p>
+          <p class="page-intro">Total statistik over spelarens SEC-historik.</p>
         </div>
       </div>
     </section>
@@ -968,98 +887,81 @@ function renderPlayerPage(player) {
     <section class="detail-grid">
       <article class="detail-card hero-stat-card"><span class="detail-label">Lag</span><strong>${escapeHtml(latestTeam)}</strong></article>
       <article class="detail-card hero-stat-card"><span class="detail-label">Cuper</span><strong>${player.cups.length}</strong></article>
-      <article class="detail-card hero-stat-card"><span class="detail-label">GP</span><strong>${player.totals.gp || sumBy(player.goalieRows, "gp")}</strong></article>
-      <article class="detail-card hero-stat-card"><span class="detail-label">${isGoalieOnly ? "Raddningar" : "Poang"}</span><strong>${isGoalieOnly ? sumBy(player.goalieRows, "sv") : player.totals.pts}</strong></article>
+      <article class="detail-card hero-stat-card"><span class="detail-label">GP</span><strong>${player.totals.gp || goalieGames}</strong></article>
+      <article class="detail-card hero-stat-card"><span class="detail-label">${isGoalieOnly ? "SV" : "PTS"}</span><strong>${isGoalieOnly ? sumBy(player.goalieRows, "sv") : player.totals.pts}</strong></article>
     </section>
 
     ${player.skaterRows.length ? `
-      <section class="section detail-card">
+      <section class="detail-card">
         <div class="section-heading compact">
-          <p class="eyebrow">Utespelarstatistik</p>
+          <p class="eyebrow">Utespelare</p>
           <h2>Alla cuper</h2>
         </div>
         ${renderStatsTable(
           ["Cup", "Lag", "GP", "G", "A", "PTS", "PIM"],
-          player.skaterRows
-            .slice()
-            .sort(function(a, b) { return inferSortOrder(b.cupId) - inferSortOrder(a.cupId); })
-            .map(function(row) {
-              return [
-                renderCupLink(row.cupId, row.cupCode),
-                renderTeamLink(row.team),
-                row.gp,
-                row.g,
-                row.a,
-                row.pts,
-                row.pim
-              ];
-            })
+          player.skaterRows.map(function(row) {
+            return [
+              renderCupLink(row.cupId, row.cupCode),
+              renderTeamLink(row.team),
+              row.gp,
+              row.g,
+              row.a,
+              row.pts,
+              row.pim
+            ];
+          })
         )}
       </section>
     ` : ""}
+
     ${player.goalieRows.length ? `
-      <section class="section detail-card">
+      <section class="detail-card">
         <div class="section-heading compact">
-          <p class="eyebrow">Malvaktsstatistik</p>
+          <p class="eyebrow">Malvakt</p>
           <h2>Alla cuper</h2>
         </div>
         ${renderStatsTable(
           ["Cup", "Lag", "GP", "SV%", "GAA", "SV", "GA", "SO"],
-          player.goalieRows
-            .slice()
-            .sort(function(a, b) { return inferSortOrder(b.cupId) - inferSortOrder(a.cupId); })
-            .map(function(row) {
-              return [
-                renderCupLink(row.cupId, row.cupCode),
-                renderTeamLink(row.team),
-                row.gp,
-                formatPercentage(row.svp),
-                formatDecimal(row.gaa),
-                row.sv,
-                row.ga,
-                row.so
-              ];
-            })
+          player.goalieRows.map(function(row) {
+            return [
+              renderCupLink(row.cupId, row.cupCode),
+              renderTeamLink(row.team),
+              row.gp,
+              formatPercentage(row.svp),
+              formatDecimal(row.gaa),
+              row.sv,
+              row.ga,
+              row.so
+            ];
+          })
         )}
       </section>
     ` : ""}
   `;
 }
 
-function renderChampionCard(cup) {
-  return `
-    <article class="champion-card">
-      <p class="champion-cup">${escapeHtml(cup.code)}</p>
-      <div class="champion-brand">
-        ${renderTeamLogo(cup.winner, "team-logo-md")}
-        <h3 class="champion-team">${escapeHtml(cup.winner)}</h3>
-      </div>
-      <p class="champion-meta">Finalist: ${escapeHtml(cup.runnerUp)}</p>
-      <a class="inline-link" href="#/cup/${encodeURIComponent(cup.id)}">Oppna cup</a>
-    </article>
-  `;
-}
-
 function renderCupCard(cup) {
-  const overview = getCupOverview(cup);
   const category = getCupCategory(cup);
   const seasonText = getCupSeasonLabel(cup, category);
   const dateLine = getCupDateLine(cup.matches);
-  const className = [
-    "cup",
-    category === "sommar" ? "is-sommar" : "",
-    category === "challenger" ? "is-challenger" : ""
-  ].filter(Boolean).join(" ");
+  const className = ["cup"];
+
+  if (category === "sommar") {
+    className.push("is-sommar");
+  }
+  if (category === "challenger") {
+    className.push("is-challenger");
+  }
 
   return `
-    <article class="${className}" role="link" tabindex="0" data-cup-link="#/cup/${encodeURIComponent(cup.id)}">
+    <article class="${className.join(" ")}" role="link" tabindex="0" data-cup-link="#/cup/${encodeURIComponent(cup.id)}">
       <img class="cup-logo" src="./SECLOGGA.png" alt="Cup Logo">
       <a href="#/cup/${encodeURIComponent(cup.id)}">${escapeHtml(cup.name)}</a>
       <div class="cup-season">
         Sasong: ${escapeHtml(seasonText)}<br>
         Datum: ${escapeHtml(dateLine)}<br>
         Matcher: ${cup.matchCount}<br>
-        Lag: ${overview.teams.length}
+        Vinnare: ${escapeHtml(cup.winner)}
       </div>
     </article>
   `;
@@ -1073,22 +975,8 @@ function renderTeamCard(team) {
         ${renderTeamLogo(team.name, "team-logo-md")}
         <h3>${escapeHtml(team.name)}</h3>
       </div>
-      <p>${team.cups.length} cuper, ${team.wins} vinster, malskillnad ${team.goalsFor - team.goalsAgainst}</p>
+      <p>${team.cups.length} cuper, ${team.matches.length} matcher</p>
       <a class="inline-link" href="#/team/${encodeURIComponent(team.key)}">Oppna lag</a>
-    </article>
-  `;
-}
-
-function renderTeamMiniCard(team) {
-  return `
-    <article class="entity-card small">
-      <p class="entity-label">Lag</p>
-      <div class="entity-brand">
-        ${renderTeamLogo(team.name, "team-logo-sm")}
-        <h3>${escapeHtml(team.name)}</h3>
-      </div>
-      <p>${team.matches.length} matcher</p>
-      <a class="inline-link" href="#/team/${encodeURIComponent(team.key)}">Lagsida</a>
     </article>
   `;
 }
@@ -1118,6 +1006,23 @@ function renderStandingsTable(group) {
   `;
 }
 
+function renderMatchCollection(title, matches) {
+  return `
+    <section class="stage-block">
+      <div class="stage-block-header">
+        <div>
+          <p class="eyebrow">${escapeHtml(title)}</p>
+          <h2>${escapeHtml(title)} matcher</h2>
+        </div>
+        <span class="pill">${matches.length} st</span>
+      </div>
+      <div class="stack-grid">
+        ${matches.map(renderMatchCard).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderMatchCard(match) {
   return `
     <article class="match-card">
@@ -1129,9 +1034,9 @@ function renderMatchCard(match) {
         <span class="pill">${match.stage === "playoffs" ? "Slutspel" : "Gruppspel"}${match.overtime ? " OT" : ""}</span>
       </div>
       <div class="match-score">
-        ${renderTeamIdentity(match.awayTeam, "sm")}
+        ${renderTeamIdentity(match.awayTeam)}
         <strong>${displayScore(match.awayScore)} - ${displayScore(match.homeScore)}</strong>
-        ${renderTeamIdentity(match.homeTeam, "sm")}
+        ${renderTeamIdentity(match.homeTeam)}
       </div>
       <p class="match-summary">${escapeHtml(match.goalsSummary || "Ingen maltext registrerad.")}</p>
     </article>
@@ -1159,17 +1064,6 @@ function renderStatsTable(headers, rows) {
   `;
 }
 
-function renderPortalCard(title, text, href) {
-  return `
-    <article class="portal-card">
-      <p class="entity-label">${escapeHtml(title)}</p>
-      <h3>${escapeHtml(title)}</h3>
-      <p>${escapeHtml(text)}</p>
-      <a class="inline-link" href="${href}">Oppna</a>
-    </article>
-  `;
-}
-
 function renderGlobalSearchModule() {
   return `
     <div class="player-search-centered home-search">
@@ -1180,6 +1074,156 @@ function renderGlobalSearchModule() {
       </div>
     </div>
   `;
+}
+
+function renderLoadingState() {
+  return `
+    <section class="tab-panel">
+      <h2>Laddar</h2>
+      <div class="cup-status">Hamtar SEC-data...</div>
+    </section>
+  `;
+}
+
+function renderNotFound(message) {
+  return `
+    <section class="section">
+      <div class="empty-state">${escapeHtml(message)}</div>
+    </section>
+  `;
+}
+
+function renderErrorState(message) {
+  return `
+    <section class="section">
+      <div class="empty-state">${escapeHtml(message)}</div>
+    </section>
+  `;
+}
+
+function setView(html) {
+  if (!appView) {
+    return;
+  }
+  appView.innerHTML = html;
+  bindViewInteractions();
+}
+
+function bindViewInteractions() {
+  bindCupCardLinks();
+  bindGlobalSearch();
+}
+
+function bindCupCardLinks() {
+  Array.from(document.querySelectorAll("[data-cup-link]")).forEach(function(card) {
+    if (card.dataset.bound === "true") {
+      return;
+    }
+
+    card.dataset.bound = "true";
+    const href = card.getAttribute("data-cup-link");
+
+    card.addEventListener("click", function(event) {
+      if (event.target && event.target.closest("a")) {
+        return;
+      }
+      window.location.hash = href.replace(/^#/, "");
+    });
+
+    card.addEventListener("keydown", function(event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        window.location.hash = href.replace(/^#/, "");
+      }
+    });
+  });
+}
+
+function bindGlobalSearch() {
+  const input = document.getElementById("globalSearch");
+  const results = document.getElementById("globalResults");
+
+  if (!input || !results || input.dataset.bound === "true") {
+    return;
+  }
+
+  input.dataset.bound = "true";
+
+  const items = state.teams.map(function(team) {
+    return {
+      type: "team",
+      label: team.name,
+      href: "#/team/" + encodeURIComponent(team.key),
+      meta: team.cups[0] ? team.cups[0].code : "Lag"
+    };
+  }).concat(state.players.map(function(player) {
+    return {
+      type: "player",
+      label: player.name,
+      href: "#/player/" + encodeURIComponent(player.key),
+      meta: player.teamNames[0] || "Spelare"
+    };
+  }));
+
+  function closeResults() {
+    results.style.display = "none";
+    results.innerHTML = "";
+  }
+
+  input.addEventListener("input", function() {
+    const query = slugify(input.value);
+
+    if (!query) {
+      closeResults();
+      return;
+    }
+
+    const matched = items.filter(function(item) {
+      return slugify(item.label).indexOf(query) !== -1 || slugify(item.meta).indexOf(query) !== -1;
+    }).slice(0, 20);
+
+    if (!matched.length) {
+      closeResults();
+      return;
+    }
+
+    results.innerHTML = matched.map(function(item) {
+      return `
+        <div class="search-item" role="option" data-href="${escapeHtml(item.href)}">
+          <div>
+            <div>${escapeHtml(item.label)}</div>
+            <div class="search-sub">${escapeHtml(item.meta)}</div>
+          </div>
+          <div class="search-pill">${item.type === "team" ? "Lag" : "Spelare"}</div>
+        </div>
+      `;
+    }).join("");
+
+    results.style.display = "block";
+
+    Array.from(results.querySelectorAll(".search-item")).forEach(function(element) {
+      element.addEventListener("click", function() {
+        window.location.hash = element.dataset.href.replace(/^#/, "");
+      });
+    });
+  });
+
+  document.addEventListener("click", function(event) {
+    if (!results.contains(event.target) && event.target !== input) {
+      closeResults();
+    }
+  });
+}
+
+function updateNavState(route) {
+  const active = route.type === "home" ? "#/" :
+    route.type === "cups" || route.type === "cup" ? "#/cups" :
+    route.type === "teams" || route.type === "team" ? "#/teams" :
+    route.type === "players" || route.type === "player" ? "#/players" : "#/";
+
+  document.querySelectorAll(".nav__link, .mobile__link").forEach(function(link) {
+    link.classList.toggle("is-active", link.getAttribute("href") === active);
+  });
 }
 
 function splitCupsByCategory(cups) {
@@ -1232,9 +1276,7 @@ function getCupSeasonLabel(cup, category) {
 
 function getCupDateLine(matches) {
   const dated = (matches || [])
-    .map(function(match) {
-      return match.date || "";
-    })
+    .map(function(match) { return match.date || ""; })
     .filter(Boolean)
     .sort();
 
@@ -1251,291 +1293,23 @@ function renderEmptyCupState(message) {
   return `<div class="sec-empty-state">${escapeHtml(message)}</div>`;
 }
 
-function bindViewInteractions() {
-  bindCupCardLinks();
-  bindGlobalSearch();
-}
-
-function bindCupCardLinks() {
-  Array.from(document.querySelectorAll("[data-cup-link]")).forEach(function(card) {
-    const href = card.getAttribute("data-cup-link");
-    if (!href || card.dataset.bound === "true") {
-      return;
-    }
-
-    card.dataset.bound = "true";
-
-    card.addEventListener("click", function(event) {
-      if (event.target && event.target.tagName === "A") {
-        return;
-      }
-      window.location.hash = href.replace(/^#/, "");
-    });
-
-    card.addEventListener("keydown", function(event) {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        window.location.hash = href.replace(/^#/, "");
-      }
-    });
-  });
-}
-
-function bindGlobalSearch() {
-  const input = document.getElementById("globalSearch");
-  const results = document.getElementById("globalResults");
-
-  if (!input || !results || input.dataset.bound === "true") {
-    return;
-  }
-
-  input.dataset.bound = "true";
-
-  const items = []
-    .concat(state.teams.map(function(team) {
-      return {
-        type: "team",
-        label: team.name,
-        href: "#/team/" + encodeURIComponent(team.key),
-        meta: team.cups[0] ? team.cups[0].code : "Lag"
-      };
-    }))
-    .concat(state.players.map(function(player) {
-      return {
-        type: "player",
-        label: player.name,
-        href: "#/player/" + encodeURIComponent(player.key),
-        meta: player.teamNames[0] || "Spelare"
-      };
-    }));
-
-  function closeResults() {
-    results.style.display = "none";
-    results.innerHTML = "";
-  }
-
-  input.addEventListener("input", function() {
-    const query = slugify(input.value || "");
-
-    if (!query) {
-      closeResults();
-      return;
-    }
-
-    const matched = items.filter(function(item) {
-      return slugify(item.label).indexOf(query) !== -1 || slugify(item.meta).indexOf(query) !== -1;
-    }).slice(0, 20);
-
-    if (!matched.length) {
-      closeResults();
-      return;
-    }
-
-    results.innerHTML = matched.map(function(item) {
-      return `
-        <div class="search-item" role="option" data-href="${escapeHtml(item.href)}">
-          <div>
-            <div>${escapeHtml(item.label)}</div>
-            <div class="search-sub">${escapeHtml(item.meta)}</div>
-          </div>
-          <div class="search-pill">${item.type === "team" ? "Lag" : "Spelare"}</div>
-        </div>
-      `;
-    }).join("");
-
-    results.style.display = "block";
-
-    Array.from(results.querySelectorAll(".search-item")).forEach(function(element) {
-      element.addEventListener("click", function() {
-        window.location.hash = element.dataset.href.replace(/^#/, "");
-      });
-    });
-  });
-
-  document.addEventListener("click", function(event) {
-    if (!results.contains(event.target) && event.target !== input) {
-      closeResults();
-    }
-  });
-}
-
-function renderMatchCollection(title, matches) {
-  return `
-    <section class="stage-block">
-      <div class="stage-block-header">
-        <div>
-          <p class="eyebrow">${escapeHtml(title)}</p>
-          <h2>${escapeHtml(title)} matcher</h2>
-        </div>
-        <span class="pill">${matches.length} st</span>
-      </div>
-      <div class="stack-grid">
-        ${matches.map(renderMatchCard).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function renderCompactMatchSummary(match) {
-  return `
-    <div class="compact-match">
-      <p class="compact-match-meta">${escapeHtml(formatMatchDate(match.date, match.time))}</p>
-      <div class="compact-match-row">
-        ${renderTeamIdentity(match.awayTeam, "sm")}
-        <strong>${displayScore(match.awayScore)} - ${displayScore(match.homeScore)}</strong>
-        ${renderTeamIdentity(match.homeTeam, "sm")}
-      </div>
-    </div>
-  `;
-}
-
-function renderFeaturedMatchCard(match) {
-  return `
-    <div class="featured-match-card">
-      ${renderCompactMatchSummary(match)}
-      <p class="match-summary">${escapeHtml(match.goalsSummary || "Ingen maltext registrerad.")}</p>
-    </div>
-  `;
-}
-
-function renderNotFound(message) {
-  return `
-    <section class="section">
-      <div class="empty-state">${escapeHtml(message)}</div>
-    </section>
-  `;
-}
-
-function renderErrorState(message) {
-  return `
-    <section class="section">
-      <div class="empty-state">${escapeHtml(message)}</div>
-    </section>
-  `;
-}
-
-function renderLoadingState() {
-  return `
-    <section class="tab-panel cups-panel">
-      <h2>Valj turnering</h2>
-      <div class="cup-status">Laddar cuper...</div>
-    </section>
-  `;
-}
-
-function setView(html) {
-  if (!appView) {
-    throw new Error("Saknar #app-view i index.html.");
-  }
-  appView.innerHTML = html;
-  bindViewInteractions();
-}
-
-function showFatalError(error) {
-  const message = typeof error === "string"
-    ? error
-    : error && error.message
-      ? error.message
-      : "Ett ovantat fel uppstod i sidan.";
-
-  if (appView) {
-    appView.innerHTML = renderErrorState("JavaScript-fel: " + message);
-  }
-}
-
-function buildGroupStandings(matches) {
-  const groupMap = new Map();
-
-  matches.filter(function(match) {
-    return match.stage !== "playoffs";
-  }).forEach(function(match) {
-    const groupName = match.group || "Gruppspel";
-    if (!groupMap.has(groupName)) {
-      groupMap.set(groupName, new Map());
-    }
-
-    const standings = groupMap.get(groupName);
-    ingestStandingRow(standings, match.homeTeam, match.homeScore, match.awayScore, match.overtime);
-    ingestStandingRow(standings, match.awayTeam, match.awayScore, match.homeScore, match.overtime);
-  });
-
-  return Array.from(groupMap.entries()).map(function(entry) {
-    const rows = Array.from(entry[1].values()).sort(function(a, b) {
-      return b.points - a.points || b.goalDiff - a.goalDiff || b.goalsFor - a.goalsFor || a.team.localeCompare(b.team, "sv");
-    });
-
-    return {
-      name: entry[0],
-      rows
-    };
-  });
-}
-
-function ingestStandingRow(standings, teamName, goalsFor, goalsAgainst, overtime) {
-  const key = createTeamKey(teamName);
-  if (!standings.has(key)) {
-    standings.set(key, {
-      team: teamName,
-      gp: 0,
-      wins: 0,
-      losses: 0,
-      otLosses: 0,
-      goalsFor: 0,
-      goalsAgainst: 0,
-      goalDiff: 0,
-      points: 0
-    });
-  }
-
-  const row = standings.get(key);
-  row.gp += 1;
-  row.goalsFor += toNumber(goalsFor);
-  row.goalsAgainst += toNumber(goalsAgainst);
-  row.goalDiff = row.goalsFor - row.goalsAgainst;
-
-  if (goalsFor > goalsAgainst) {
-    row.wins += 1;
-    row.points += 3;
-  }
-  } else if (overtime) {
-    row.otLosses += 1;
-    row.points += 1;
-  } else {
-    row.losses += 1;
-  }
-}
-
 function getCupOverview(cup) {
   const teams = buildCupTeams(cup);
-  const groupMatches = cup.matches
-    .filter(function(match) { return match.stage !== "playoffs"; })
-    .slice()
-    .sort(compareMatchesDesc);
-  const playoffMatches = cup.matches
-    .filter(function(match) { return match.stage === "playoffs"; })
-    .slice()
-    .sort(compareMatchesDesc);
+  const groupMatches = cup.matches.filter(function(match) { return match.stage !== "playoffs"; }).sort(compareMatchesDesc);
+  const playoffMatches = cup.matches.filter(function(match) { return match.stage === "playoffs"; }).sort(compareMatchesDesc);
   const allPlayerRows = cup.playerStats.group.concat(cup.playerStats.playoffs);
   const allGoalieRows = cup.goalieStats.group.concat(cup.goalieStats.playoffs);
-  const topPlayers = allPlayerRows
-    .slice()
-    .sort(function(a, b) { return b.pts - a.pts || b.g - a.g || a.player.localeCompare(b.player, "sv"); })
-    .slice(0, 12);
-  const topGoalies = allGoalieRows
-    .slice()
-    .sort(function(a, b) { return safeNumber(b.svp) - safeNumber(a.svp) || safeNumber(a.gaa) - safeNumber(b.gaa); })
-    .slice(0, 10);
-  const featuredMatch = playoffMatches[0] || groupMatches[0] || null;
-  const bestGoalie = topGoalies[0] || null;
 
   return {
-    teams,
-    groupMatches,
-    playoffMatches,
-    featuredMatch,
-    bestGoalie,
-    topPlayers,
-    topGoalies
+    teams: teams,
+    groupMatches: groupMatches,
+    playoffMatches: playoffMatches,
+    topPlayers: allPlayerRows.slice().sort(function(a, b) {
+      return b.pts - a.pts || b.g - a.g || a.player.localeCompare(b.player, "sv");
+    }).slice(0, 10),
+    topGoalies: allGoalieRows.slice().sort(function(a, b) {
+      return safeNumber(b.svp) - safeNumber(a.svp) || safeNumber(a.gaa) - safeNumber(b.gaa);
+    }).slice(0, 10)
   };
 }
 
@@ -1551,14 +1325,77 @@ function buildCupTeams(cup) {
     names.add(row.team);
   });
 
-  return Array.from(names)
-    .map(function(name) {
-      return state.teams.find(function(team) { return team.key === createTeamKey(name); });
-    })
-    .filter(Boolean)
-    .sort(function(a, b) {
-      return a.name.localeCompare(b.name, "sv");
+  cup.goalieStats.group.concat(cup.goalieStats.playoffs).forEach(function(row) {
+    names.add(row.team);
+  });
+
+  return Array.from(names).map(function(name) {
+    return state.teams.find(function(team) {
+      return team.key === createTeamKey(name);
     });
+  }).filter(Boolean);
+}
+
+function buildGroupStandings(matches) {
+  const groups = new Map();
+
+  matches.filter(function(match) {
+    return match.stage !== "playoffs";
+  }).forEach(function(match) {
+    const groupName = match.group || "Gruppspel";
+    if (!groups.has(groupName)) {
+      groups.set(groupName, new Map());
+    }
+
+    const standings = groups.get(groupName);
+    ingestStandingRow(standings, match.homeTeam, match.homeScore, match.awayScore, match.overtime);
+    ingestStandingRow(standings, match.awayTeam, match.awayScore, match.homeScore, match.overtime);
+  });
+
+  return Array.from(groups.entries()).map(function(entry) {
+    const rows = Array.from(entry[1].values()).sort(function(a, b) {
+      return b.points - a.points || b.goalDiff - a.goalDiff || b.goalsFor - a.goalsFor || a.team.localeCompare(b.team, "sv");
+    });
+
+    return {
+      name: entry[0],
+      rows: rows
+    };
+  });
+}
+
+function ingestStandingRow(standings, teamName, goalsFor, goalsAgainst, overtime) {
+  const key = createTeamKey(teamName);
+
+  if (!standings.has(key)) {
+    standings.set(key, {
+      team: teamName,
+      gp: 0,
+      wins: 0,
+      otLosses: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      goalDiff: 0,
+      points: 0
+    });
+  }
+
+  const row = standings.get(key);
+  row.gp += 1;
+  row.goalsFor += toNumber(goalsFor);
+  row.goalsAgainst += toNumber(goalsAgainst);
+  row.goalDiff = row.goalsFor - row.goalsAgainst;
+
+  if (toNumber(goalsFor) > toNumber(goalsAgainst)) {
+    row.wins += 1;
+    row.points += 3;
+  } else if (overtime) {
+    row.otLosses += 1;
+    row.points += 1;
+  } else {
+    row.losses += 1;
+  }
 }
 
 function parseRoute() {
@@ -1601,21 +1438,22 @@ function renderTeamLink(teamName) {
   return `<a href="#/team/${encodeURIComponent(createTeamKey(teamName))}">${escapeHtml(teamName)}</a>`;
 }
 
-function renderTeamIdentity(teamName, size) {
-  const logoClass = size === "sm" ? "team-logo-sm" : "team-logo-md";
-  const href = "#/team/" + encodeURIComponent(createTeamKey(teamName));
+function renderPlayerLink(row) {
+  return `<a href="#/player/${encodeURIComponent(createPlayerKey(row))}">${escapeHtml(row.player)}</a>`;
+}
+
+function renderTeamIdentity(teamName) {
   return `
-    <a class="team-identity" href="${href}">
-      ${renderTeamLogo(teamName, logoClass)}
+    <a class="team-identity" href="#/team/${encodeURIComponent(createTeamKey(teamName))}">
+      ${renderTeamLogo(teamName, "team-logo-sm")}
       <span class="team-identity-text">${escapeHtml(teamName)}</span>
     </a>
   `;
 }
 
 function renderPlayerIdentity(player) {
-  const href = "#/player/" + encodeURIComponent(player.key);
   return `
-    <a class="player-identity" href="${href}">
+    <a class="player-identity" href="#/player/${encodeURIComponent(player.key)}">
       ${renderPlayerPortrait(player, "player-portrait-sm")}
       <span class="player-identity-text">${escapeHtml(player.name)}</span>
     </a>
@@ -1627,13 +1465,31 @@ function renderTeamLogo(teamName, sizeClass) {
     return `<span class="team-logo-wrap ${sizeClass || "team-logo-sm"} is-missing"></span>`;
   }
 
-  const src = getTeamLogoUrl(teamName);
   return `
     <span class="team-logo-wrap ${sizeClass || "team-logo-sm"}">
       <img
         class="team-logo-image"
-        src="${escapeHtml(src)}"
+        src="${escapeHtml(getTeamLogoUrl(teamName))}"
         alt="${escapeHtml(teamName)} logga"
+        loading="lazy"
+        onerror="this.style.display='none';this.parentElement.classList.add('is-missing');"
+      >
+    </span>
+  `;
+}
+
+function renderPlayerPortrait(player, sizeClass) {
+  const filename = getPlayerImageFilename(player);
+  if (!filename) {
+    return `<span class="player-portrait-wrap ${sizeClass || "player-portrait-sm"} is-missing"></span>`;
+  }
+
+  return `
+    <span class="player-portrait-wrap ${sizeClass || "player-portrait-sm"}">
+      <img
+        class="player-portrait-image"
+        src="${escapeHtml(getPlayerImageBaseUrl() + "/" + encodeURIComponent(filename))}"
+        alt="${escapeHtml(player.name || player.player)} spelarkort"
         loading="lazy"
         onerror="this.style.display='none';this.parentElement.classList.add('is-missing');"
       >
@@ -1649,40 +1505,9 @@ function getTeamLogoBaseUrl() {
   return String(window.SEC_CONFIG?.teamLogoBaseUrl || "https://sweehockey-svg.github.io/teamlogos").replace(/\/+$/, "");
 }
 
-function renderPlayerLink(row) {
-  return `<a href="#/player/${encodeURIComponent(createPlayerKey(row))}">${escapeHtml(row.player)}</a>`;
-}
-
-function renderPlayerPortrait(player, sizeClass) {
-  const filename = getPlayerImageFilename(player);
-
-  if (!filename) {
-    return `<span class="player-portrait-wrap ${sizeClass || "player-portrait-sm"} is-missing"></span>`;
-  }
-
-  const src = getPlayerImageBaseUrl() + "/" + encodeURIComponent(filename);
-  return `
-    <span class="player-portrait-wrap ${sizeClass || "player-portrait-sm"}">
-      <img
-        class="player-portrait-image"
-        src="${escapeHtml(src)}"
-        alt="${escapeHtml(player.name || player.player)} spelarkort"
-        loading="lazy"
-        onerror="this.style.display='none';this.parentElement.classList.add('is-missing');"
-      >
-    </span>
-  `;
-}
-
 function getPlayerImageFilename(player) {
-  const baseName = getPlayerImageStem(player?.name || player?.player || "");
+  const baseName = String(player?.name || player?.player || "").split(",")[0].trim();
   return baseName ? baseName + ".jpg" : "";
-}
-
-function getPlayerImageStem(playerName) {
-  return String(playerName || "")
-    .split(",")[0]
-    .trim();
 }
 
 function getPlayerImageBaseUrl() {
@@ -1713,18 +1538,10 @@ function slugify(value) {
   return String(value || "")
     .trim()
     .toLowerCase()
-    .replace(/[Ã¥Ã¤]/g, "a")
-    .replace(/Ã¶/g, "o")
+    .replace(/[åä]/g, "a")
+    .replace(/[ö]/g, "o")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-function uniqueBy(items, key) {
-  const map = new Map();
-  items.forEach(function(item) {
-    map.set(item[key], item);
-  });
-  return Array.from(map.values());
 }
 
 function normalizeStage(stage) {
@@ -1759,10 +1576,7 @@ function formatPercentage(value) {
     return "-";
   }
   const numeric = Number(value);
-  if (numeric > 1) {
-    return numeric.toFixed(1);
-  }
-  return (numeric * 100).toFixed(1);
+  return numeric > 1 ? numeric.toFixed(1) : (numeric * 100).toFixed(1);
 }
 
 function formatDecimal(value) {
@@ -1799,10 +1613,25 @@ function inferSortOrder(id) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function uniqueBy(items, key) {
+  const map = new Map();
+  items.forEach(function(item) {
+    map.set(item[key], item);
+  });
+  return Array.from(map.values());
+}
+
 function sumBy(items, key) {
   return items.reduce(function(sum, item) {
     return sum + toNumber(item[key]);
   }, 0);
+}
+
+function showFatalError(error) {
+  const message = typeof error === "string" ? error : error?.message || "Ett ovantat fel uppstod.";
+  if (appView) {
+    appView.innerHTML = renderErrorState("JavaScript-fel: " + message);
+  }
 }
 
 function escapeHtml(value) {
