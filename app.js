@@ -111,6 +111,7 @@ const state = {
 };
 
 const appView = document.querySelector("#app-view");
+let tableIdCounter = 0;
 
 window.addEventListener("hashchange", renderCurrentRoute);
 window.addEventListener("error", function(event) {
@@ -258,8 +259,11 @@ function normalizeCups(cups) {
 
 function normalizePlayerRows(rows, stage) {
   return rows.map(function(row) {
+    const playerMeta = parsePlayerName(row.player);
     return {
       player: String(row.player || "Okand spelare"),
+      displayName: playerMeta.name,
+      countryCode: playerMeta.countryCode,
       team: String(row.team || "Okant lag"),
       gp: toNumber(row.gp),
       g: toNumber(row.g),
@@ -274,8 +278,11 @@ function normalizePlayerRows(rows, stage) {
 
 function normalizeGoalieRows(rows, stage) {
   return rows.map(function(row) {
+    const playerMeta = parsePlayerName(row.player);
     return {
       player: String(row.player || "Okand malvakt"),
+      displayName: playerMeta.name,
+      countryCode: playerMeta.countryCode,
       team: String(row.team || "Okant lag"),
       gp: toNumber(row.gp),
       sa: toNumber(row.sa),
@@ -318,6 +325,8 @@ function buildTeams(cups) {
           cupId: cup.id,
           cupCode: cup.code,
           player: row.player,
+          displayName: row.displayName,
+          countryCode: row.countryCode,
           playerId: row.playerId,
           gp: row.gp,
           g: row.g,
@@ -331,6 +340,8 @@ function buildTeams(cups) {
           cupId: cup.id,
           cupCode: cup.code,
           player: row.player,
+          displayName: row.displayName,
+          countryCode: row.countryCode,
           playerId: row.playerId,
           gp: row.gp,
           svp: row.svp,
@@ -427,6 +438,8 @@ function buildPlayers(cups) {
         cupId: cup.id,
         cupCode: cup.code,
         team: row.team,
+        displayName: row.displayName,
+        countryCode: row.countryCode,
         gp: row.gp,
         g: row.g,
         a: row.a,
@@ -454,6 +467,8 @@ function buildPlayers(cups) {
         cupId: cup.id,
         cupCode: cup.code,
         team: row.team,
+        displayName: row.displayName,
+        countryCode: row.countryCode,
         gp: row.gp,
         svp: row.svp,
         gaa: row.gaa,
@@ -485,7 +500,9 @@ function createEmptyPlayer(row, key) {
   return {
     key: key,
     playerId: row.playerId || "",
-    name: row.player,
+    name: row.displayName || row.player,
+    rawName: row.player,
+    countryCode: row.countryCode || "",
     teamNames: new Set(),
     cups: [],
     skaterRows: [],
@@ -594,7 +611,7 @@ function renderHomePage() {
         <div class="sec-footer-glow"></div>
         <div id="sec-footer-line"></div>
         <div id="sec-footer-text">
-          © 2026 <span>Svenska eHockey Cupen</span> | Design & utveckling av <span>Svensk eHockey</span>
+          Â© 2026 <span>Svenska eHockey Cupen</span> | Design & utveckling av <span>Svensk eHockey</span>
         </div>
       </footer>
     </section>
@@ -704,7 +721,7 @@ function renderCupPage(cup) {
       </article>
       <article class="detail-card hero-stat-card">
         <span class="detail-label">Malvaktskung</span>
-        <strong>${goalieKing ? escapeHtml(goalieKing.player) : "Ej klar"}</strong>
+        <strong>${goalieKing ? escapeHtml(getDisplayPlayerName(goalieKing)) : "Ej klar"}</strong>
       </article>
     </section>
 
@@ -739,13 +756,17 @@ function renderCupPage(cup) {
                 <h2>Topp 10 poang</h2>
               </div>
               ${renderStatsTable(
-                ["Spelare", "Lag", "PTS"],
+                [
+                  { key: "player", label: "Spelare" },
+                  { key: "team", label: "Lag" },
+                  { key: "pts", label: "PTS", type: "number" }
+                ],
                 topPlayers.map(function(row) {
-                  return [
-                    renderPlayerLink(row),
-                    renderTeamLink(row.team),
-                    row.pts
-                  ];
+                  return {
+                    player: createPlayerCell(row),
+                    team: createTeamCell(row.team),
+                    pts: row.pts
+                  };
                 })
               )}
             </article>
@@ -758,14 +779,19 @@ function renderCupPage(cup) {
                 <h2>Topp 10 SV%</h2>
               </div>
               ${renderStatsTable(
-                ["Spelare", "Lag", "SV%", "GP"],
+                [
+                  { key: "player", label: "Spelare" },
+                  { key: "team", label: "Lag" },
+                  { key: "svp", label: "SV%", type: "number" },
+                  { key: "gp", label: "GP", type: "number" }
+                ],
                 topGoalies.map(function(row) {
-                  return [
-                    renderPlayerLink(row),
-                    renderTeamLink(row.team),
-                    formatPercentage(row.svp),
-                    row.gp
-                  ];
+                  return {
+                    player: createPlayerCell(row),
+                    team: createTeamCell(row.team),
+                    svp: createCellValue(formatPercentage(row.svp), normalizePercentageForSort(row.svp)),
+                    gp: row.gp
+                  };
                 })
               )}
             </article>
@@ -779,7 +805,7 @@ function renderCupPage(cup) {
                 <div class="simple-list-item">Vinnare: ${escapeHtml(cup.winner)}</div>
                 <div class="simple-list-item">Finalist: ${escapeHtml(cup.runnerUp)}</div>
                 <div class="simple-list-item">Poangkung: ${escapeHtml(cup.topScorer)}</div>
-                <div class="simple-list-item">Malvaktskung: ${goalieKing ? escapeHtml(goalieKing.player) + " (" + formatPercentage(goalieKing.svp) + ")" : "Ej klar"}</div>
+                <div class="simple-list-item">Malvaktskung: ${goalieKing ? escapeHtml(getDisplayPlayerName(goalieKing)) + " (" + formatPercentage(goalieKing.svp) + ")" : "Ej klar"}</div>
               </div>
             </article>
           </div>
@@ -793,16 +819,23 @@ function renderCupPage(cup) {
                 <h2>Poangliga</h2>
               </div>
               ${renderStatsTable(
-                ["Spelare", "Lag", "GP", "G", "A", "PTS"],
+                [
+                  { key: "player", label: "Spelare" },
+                  { key: "team", label: "Lag" },
+                  { key: "gp", label: "GP", type: "number" },
+                  { key: "g", label: "G", type: "number" },
+                  { key: "a", label: "A", type: "number" },
+                  { key: "pts", label: "PTS", type: "number" }
+                ],
                 overview.topPlayers.map(function(row) {
-                  return [
-                    renderPlayerLink(row),
-                    renderTeamLink(row.team),
-                    row.gp,
-                    row.g,
-                    row.a,
-                    row.pts
-                  ];
+                  return {
+                    player: createPlayerCell(row),
+                    team: createTeamCell(row.team),
+                    gp: row.gp,
+                    g: row.g,
+                    a: row.a,
+                    pts: row.pts
+                  };
                 })
               )}
             </article>
@@ -813,16 +846,23 @@ function renderCupPage(cup) {
                 <h2>Topplista</h2>
               </div>
               ${renderStatsTable(
-                ["Spelare", "Lag", "GP", "SV%", "GAA", "SO"],
+                [
+                  { key: "player", label: "Spelare" },
+                  { key: "team", label: "Lag" },
+                  { key: "gp", label: "GP", type: "number" },
+                  { key: "svp", label: "SV%", type: "number" },
+                  { key: "gaa", label: "GAA", type: "number" },
+                  { key: "so", label: "SO", type: "number" }
+                ],
                 overview.topGoalies.map(function(row) {
-                  return [
-                    renderPlayerLink(row),
-                    renderTeamLink(row.team),
-                    row.gp,
-                    formatPercentage(row.svp),
-                    formatDecimal(row.gaa),
-                    row.so
-                  ];
+                  return {
+                    player: createPlayerCell(row),
+                    team: createTeamCell(row.team),
+                    gp: row.gp,
+                    svp: createCellValue(formatPercentage(row.svp), normalizePercentageForSort(row.svp)),
+                    gaa: createCellValue(formatDecimal(row.gaa), safeNumber(row.gaa)),
+                    so: row.so
+                  };
                 })
               )}
             </article>
@@ -915,16 +955,23 @@ function renderTeamPage(team) {
           <h2>Toppspelare</h2>
         </div>
         ${renderStatsTable(
-          ["Spelare", "Cup", "GP", "G", "A", "PTS"],
+          [
+            { key: "player", label: "Spelare" },
+            { key: "cup", label: "Cup" },
+            { key: "gp", label: "GP", type: "number" },
+            { key: "g", label: "G", type: "number" },
+            { key: "a", label: "A", type: "number" },
+            { key: "pts", label: "PTS", type: "number" }
+          ],
           topScorers.map(function(row) {
-            return [
-              renderPlayerLink(row),
-              renderCupLink(row.cupId, row.cupCode),
-              row.gp,
-              row.g,
-              row.a,
-              row.pts
-            ];
+            return {
+              player: createPlayerCell(row),
+              cup: createCellValue(renderCupLink(row.cupId, row.cupCode), row.cupCode),
+              gp: row.gp,
+              g: row.g,
+              a: row.a,
+              pts: row.pts
+            };
           })
         )}
       </article>
@@ -959,15 +1006,21 @@ function renderPlayersIndex() {
     </section>
     <section class="detail-card">
       ${renderStatsTable(
-        ["Spelare", "Lag", "Cuper", "GP", "PTS"],
+        [
+          { key: "player", label: "Spelare" },
+          { key: "lag", label: "Lag" },
+          { key: "cuper", label: "Cuper", type: "number" },
+          { key: "gp", label: "GP", type: "number" },
+          { key: "pts", label: "PTS", type: "number" }
+        ],
         topPlayers.map(function(player) {
-          return [
-            renderPlayerIdentity(player),
-            escapeHtml(player.teamNames.join(", ")),
-            player.cups.length,
-            player.totals.gp || sumBy(player.goalieRows, "gp"),
-            player.totals.pts || 0
-          ];
+          return {
+            player: createPlayerCell(player, player.key),
+            lag: createCellValue(escapeHtml(player.teamNames.join(", ")), player.teamNames.join(", ")),
+            cuper: player.cups.length,
+            gp: player.totals.gp || sumBy(player.goalieRows, "gp"),
+            pts: player.totals.pts || 0
+          };
         })
       )}
     </section>
@@ -1012,17 +1065,25 @@ function renderPlayerPage(player) {
           <h2>Alla cuper</h2>
         </div>
         ${renderStatsTable(
-          ["Cup", "Lag", "GP", "G", "A", "PTS", "PIM"],
+          [
+            { key: "cup", label: "Cup" },
+            { key: "lag", label: "Lag" },
+            { key: "gp", label: "GP", type: "number" },
+            { key: "g", label: "G", type: "number" },
+            { key: "a", label: "A", type: "number" },
+            { key: "pts", label: "PTS", type: "number" },
+            { key: "pim", label: "PIM", type: "number" }
+          ],
           player.skaterRows.map(function(row) {
-            return [
-              renderCupLink(row.cupId, row.cupCode),
-              renderTeamLink(row.team),
-              row.gp,
-              row.g,
-              row.a,
-              row.pts,
-              row.pim
-            ];
+            return {
+              cup: createCellValue(renderCupLink(row.cupId, row.cupCode), row.cupCode),
+              lag: createTeamCell(row.team),
+              gp: row.gp,
+              g: row.g,
+              a: row.a,
+              pts: row.pts,
+              pim: row.pim
+            };
           })
         )}
       </section>
@@ -1035,18 +1096,27 @@ function renderPlayerPage(player) {
           <h2>Alla cuper</h2>
         </div>
         ${renderStatsTable(
-          ["Cup", "Lag", "GP", "SV%", "GAA", "SV", "GA", "SO"],
+          [
+            { key: "cup", label: "Cup" },
+            { key: "lag", label: "Lag" },
+            { key: "gp", label: "GP", type: "number" },
+            { key: "svp", label: "SV%", type: "number" },
+            { key: "gaa", label: "GAA", type: "number" },
+            { key: "sv", label: "SV", type: "number" },
+            { key: "ga", label: "GA", type: "number" },
+            { key: "so", label: "SO", type: "number" }
+          ],
           player.goalieRows.map(function(row) {
-            return [
-              renderCupLink(row.cupId, row.cupCode),
-              renderTeamLink(row.team),
-              row.gp,
-              formatPercentage(row.svp),
-              formatDecimal(row.gaa),
-              row.sv,
-              row.ga,
-              row.so
-            ];
+            return {
+              cup: createCellValue(renderCupLink(row.cupId, row.cupCode), row.cupCode),
+              lag: createTeamCell(row.team),
+              gp: row.gp,
+              svp: createCellValue(formatPercentage(row.svp), normalizePercentageForSort(row.svp)),
+              gaa: createCellValue(formatDecimal(row.gaa), safeNumber(row.gaa)),
+              sv: row.sv,
+              ga: row.ga,
+              so: row.so
+            };
           })
         )}
       </section>
@@ -1103,17 +1173,25 @@ function renderStandingsTable(group) {
         <h2>${escapeHtml(group.name)}</h2>
       </div>
       ${renderStatsTable(
-        ["Lag", "GP", "V", "OTF", "F", "MS", "P"],
+        [
+          { key: "lag", label: "Lag" },
+          { key: "gp", label: "GP", type: "number" },
+          { key: "wins", label: "V", type: "number" },
+          { key: "otLosses", label: "OTF", type: "number" },
+          { key: "losses", label: "F", type: "number" },
+          { key: "goalDiff", label: "MS", type: "number" },
+          { key: "points", label: "P", type: "number" }
+        ],
         group.rows.map(function(row) {
-          return [
-            renderTeamLink(row.team),
-            row.gp,
-            row.wins,
-            row.otLosses,
-            row.losses,
-            row.goalDiff,
-            row.points
-          ];
+          return {
+            lag: createTeamCell(row.team),
+            gp: row.gp,
+            wins: row.wins,
+            otLosses: row.otLosses,
+            losses: row.losses,
+            goalDiff: row.goalDiff,
+            points: row.points
+          };
         })
       )}
     </article>
@@ -1257,20 +1335,52 @@ function renderMatchCard(match) {
   `;
 }
 
-function renderStatsTable(headers, rows) {
+function renderStatsTable(columns, rows) {
   if (!rows.length) {
     return `<div class="empty-state">Ingen data finns an.</div>`;
   }
 
+  const tableId = "stats-table-" + String(tableIdCounter++);
+
   return `
     <div class="table-wrap">
-      <table class="stats-table">
+      <table class="stats-table" data-sortable-table="${tableId}">
         <thead>
-          <tr>${headers.map(function(header) { return `<th>${escapeHtml(String(header))}</th>`; }).join("")}</tr>
+          <tr>${columns.map(function(column, index) {
+            const label = typeof column === "string" ? column : column.label;
+            const sortable = typeof column === "string" ? true : column.sortable !== false;
+
+            if (!sortable) {
+              return `<th>${escapeHtml(String(label))}</th>`;
+            }
+
+            return `
+              <th>
+                <button
+                  class="stats-sort-button"
+                  type="button"
+                  data-sort-button="${tableId}"
+                  data-column-index="${index}"
+                  aria-label="Sortera ${escapeHtml(String(label))}"
+                >
+                  <span>${escapeHtml(String(label))}</span>
+                  <span class="stats-sort-icon" aria-hidden="true"></span>
+                </button>
+              </th>
+            `;
+          }).join("")}</tr>
         </thead>
         <tbody>
           ${rows.map(function(row) {
-            return `<tr>${row.map(function(cell) { return `<td>${cell}</td>`; }).join("")}</tr>`;
+            return `
+              <tr>
+                ${columns.map(function(column) {
+                  const key = typeof column === "string" ? column : column.key;
+                  const cell = toTableCell(row[key]);
+                  return `<td data-sort-value="${escapeHtml(cell.sort)}">${cell.display}</td>`;
+                }).join("")}
+              </tr>
+            `;
           }).join("")}
         </tbody>
       </table>
@@ -1327,6 +1437,56 @@ function bindViewInteractions() {
   bindCupCardLinks();
   bindGlobalSearch();
   bindCupTabs();
+  bindSortableTables();
+}
+
+function bindSortableTables() {
+  Array.from(document.querySelectorAll("[data-sort-button]")).forEach(function(button) {
+    if (button.dataset.bound === "true") {
+      return;
+    }
+
+    button.dataset.bound = "true";
+
+    button.addEventListener("click", function() {
+      const tableId = button.getAttribute("data-sort-button");
+      const columnIndex = Number(button.getAttribute("data-column-index"));
+      const table = document.querySelector('[data-sortable-table="' + tableId + '"]');
+
+      if (!table) {
+        return;
+      }
+
+      const tbody = table.querySelector("tbody");
+      const buttons = Array.from(document.querySelectorAll('[data-sort-button="' + tableId + '"]'));
+      const currentDirection = button.dataset.sortDirection === "asc" ? "asc" : button.dataset.sortDirection === "desc" ? "desc" : "";
+      const nextDirection = currentDirection === "asc" ? "desc" : "asc";
+      const rows = Array.from(tbody.querySelectorAll("tr"));
+
+      rows.sort(function(leftRow, rightRow) {
+        const leftCell = leftRow.children[columnIndex];
+        const rightCell = rightRow.children[columnIndex];
+        const leftValue = leftCell ? leftCell.getAttribute("data-sort-value") || "" : "";
+        const rightValue = rightCell ? rightCell.getAttribute("data-sort-value") || "" : "";
+        const comparison = compareSortValues(leftValue, rightValue);
+        return nextDirection === "asc" ? comparison : -comparison;
+      });
+
+      rows.forEach(function(row) {
+        tbody.appendChild(row);
+      });
+
+      buttons.forEach(function(entry) {
+        entry.dataset.sortDirection = "";
+        entry.setAttribute("aria-sort", "none");
+        entry.classList.remove("is-active");
+      });
+
+      button.dataset.sortDirection = nextDirection;
+      button.setAttribute("aria-sort", nextDirection === "asc" ? "ascending" : "descending");
+      button.classList.add("is-active");
+    });
+  });
 }
 
 function bindCupCardLinks() {
@@ -1716,7 +1876,12 @@ function renderTeamLink(teamName) {
 }
 
 function renderPlayerLink(row) {
-  return `<a href="#/player/${encodeURIComponent(createPlayerKey(row))}">${escapeHtml(row.player)}</a>`;
+  return `
+    <a class="player-inline-link" href="#/player/${encodeURIComponent(createPlayerKey(row))}">
+      ${renderFlag(row.countryCode)}
+      <span>${escapeHtml(getDisplayPlayerName(row))}</span>
+    </a>
+  `;
 }
 
 function renderTeamIdentity(teamName) {
@@ -1731,7 +1896,7 @@ function renderTeamIdentity(teamName) {
 function renderPlayerIdentity(player) {
   return `
     <a class="player-identity" href="#/player/${encodeURIComponent(player.key)}">
-      ${renderPlayerPortrait(player, "player-portrait-sm")}
+      ${renderFlag(player.countryCode)}
       <span class="player-identity-text">${escapeHtml(player.name)}</span>
     </a>
   `;
@@ -1793,7 +1958,116 @@ function getPlayerImageBaseUrl() {
 
 function formatPlayerLabel(player) {
   const team = player.team ? " - " + player.team : "";
-  return player.player + team + " (" + toNumber(player.pts) + " p)";
+  return getDisplayPlayerName(player) + team + " (" + toNumber(player.pts) + " p)";
+}
+
+function createCellValue(display, sort) {
+  return {
+    display: display,
+    sort: typeof sort === "undefined" ? display : sort
+  };
+}
+
+function createTeamCell(teamName) {
+  return createCellValue(renderTeamIdentity(teamName), teamName);
+}
+
+function createPlayerCell(player, keyOverride) {
+  const href = keyOverride ? "#/player/" + encodeURIComponent(keyOverride) : "#/player/" + encodeURIComponent(createPlayerKey(player));
+  return createCellValue(`
+    <a class="player-inline-link" href="${href}">
+      ${renderFlag(player.countryCode)}
+      <span>${escapeHtml(getDisplayPlayerName(player))}</span>
+    </a>
+  `, getDisplayPlayerName(player));
+}
+
+function toTableCell(value) {
+  if (value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, "display")) {
+    return {
+      display: String(value.display),
+      sort: stringifySortValue(value.sort)
+    };
+  }
+
+  return {
+    display: escapeHtml(value),
+    sort: stringifySortValue(value)
+  };
+}
+
+function stringifySortValue(value) {
+  if (value === null || typeof value === "undefined") {
+    return "";
+  }
+  return String(value);
+}
+
+function compareSortValues(leftValue, rightValue) {
+  const leftNumber = Number(leftValue);
+  const rightNumber = Number(rightValue);
+  const bothNumeric = leftValue !== "" && rightValue !== "" && Number.isFinite(leftNumber) && Number.isFinite(rightNumber);
+
+  if (bothNumeric) {
+    return leftNumber - rightNumber;
+  }
+
+  return leftValue.localeCompare(rightValue, "sv", { numeric: true, sensitivity: "base" });
+}
+
+function parsePlayerName(value) {
+  const source = String(value || "").trim();
+  const match = source.match(/,\s*([A-Z]{2,3})$/);
+
+  return {
+    name: match ? source.slice(0, match.index).trim() : source,
+    countryCode: match ? match[1] : ""
+  };
+}
+
+function getDisplayPlayerName(player) {
+  if (!player) {
+    return "";
+  }
+  if (player.displayName) {
+    return player.displayName;
+  }
+  return parsePlayerName(player.name || player.player || "").name;
+}
+
+function renderFlag(countryCode) {
+  if (!countryCode) {
+    return `<span class="player-flag is-missing" aria-hidden="true"></span>`;
+  }
+
+  return `
+    <span class="player-flag" aria-label="${escapeHtml(countryCode)}" title="${escapeHtml(countryCode)}">
+      ${countryCodeToEmoji(countryCode)}
+    </span>
+  `;
+}
+
+function countryCodeToEmoji(countryCode) {
+  const normalized = String(countryCode || "").trim().toUpperCase();
+
+  if (!/^[A-Z]{2}$/.test(normalized)) {
+    return normalized || "";
+  }
+
+  return normalized
+    .split("")
+    .map(function(letter) {
+      return String.fromCodePoint(127397 + letter.charCodeAt(0));
+    })
+    .join("");
+}
+
+function normalizePercentageForSort(value) {
+  if (value === null || typeof value === "undefined" || Number.isNaN(Number(value))) {
+    return -1;
+  }
+  const numeric = Number(value);
+  return numeric > 1 ? numeric : numeric * 100;
 }
 
 function createTeamKey(teamName) {
@@ -1815,8 +2089,8 @@ function slugify(value) {
   return String(value || "")
     .trim()
     .toLowerCase()
-    .replace(/[åä]/g, "a")
-    .replace(/[ö]/g, "o")
+    .replace(/[Ã¥Ã¤]/g, "a")
+    .replace(/[Ã¶]/g, "o")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
