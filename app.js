@@ -643,6 +643,7 @@ function renderCupsIndex() {
 function renderCupPage(cup) {
   const overview = getCupOverview(cup);
   const groupStandings = buildGroupStandings(cup.matches);
+  const playoffRounds = buildPlayoffRounds(cup.matches);
 
   return `
     <section class="cup-hero">
@@ -690,7 +691,7 @@ function renderCupPage(cup) {
         <strong>${cup.matchCount}</strong>
       </article>
       <article class="detail-card hero-stat-card">
-        <span class="detail-label">Poangkung</span>
+        <span class="detail-label">Poängkung</span>
         <strong>${escapeHtml(cup.topScorer)}</strong>
       </article>
       <article class="detail-card hero-stat-card">
@@ -703,45 +704,84 @@ function renderCupPage(cup) {
       </article>
     </section>
 
-    <section class="two-column-section">
-      <article class="detail-card">
-        <div class="section-heading compact">
-          <p class="eyebrow">Tabeller</p>
-          <h2>Gruppspel</h2>
-        </div>
-        ${groupStandings.length ? groupStandings.map(renderStandingsTable).join("") : `<div class="empty-state">Ingen gruppstatistik finns an.</div>`}
-      </article>
-
-      <article class="detail-card">
-        <div class="section-heading compact">
-          <p class="eyebrow">Topplista</p>
-          <h2>Poangliga</h2>
-        </div>
-        ${renderStatsTable(
-          ["Spelare", "Lag", "GP", "G", "A", "PTS"],
-          overview.topPlayers.map(function(row) {
-            return [
-              renderPlayerLink(row),
-              renderTeamLink(row.team),
-              row.gp,
-              row.g,
-              row.a,
-              row.pts
-            ];
-          })
-        )}
-      </article>
-    </section>
-
-    <section class="section">
-      <div class="section-heading">
-        <p class="eyebrow">Matcher</p>
-        <h2>Matchcenter</h2>
+    <section class="cup-tabs-shell">
+      <div class="cup-tabs" role="tablist" aria-label="Cupflikar">
+        <button class="cup-tab is-active" type="button" role="tab" aria-selected="true" data-cup-tab="statistik">Statistik</button>
+        <button class="cup-tab" type="button" role="tab" aria-selected="false" data-cup-tab="tabell">Tabell</button>
+        <button class="cup-tab" type="button" role="tab" aria-selected="false" data-cup-tab="slutspel">Slutspelsträd</button>
+        <button class="cup-tab" type="button" role="tab" aria-selected="false" data-cup-tab="regler">Regler</button>
       </div>
-      <div class="stage-stack">
-        ${overview.playoffMatches.length ? renderMatchCollection("Slutspel", overview.playoffMatches) : ""}
-        ${overview.groupMatches.length ? renderMatchCollection("Gruppspel", overview.groupMatches) : ""}
-        ${!cup.matches.length ? `<div class="empty-state">Inga matcher finns registrerade for den har cupen.</div>` : ""}
+
+      <div class="cup-tab-panels">
+        <section class="cup-tab-panel is-active" data-cup-panel="statistik" role="tabpanel">
+          <div class="two-column-section">
+            <article class="detail-card">
+              <div class="section-heading compact">
+                <p class="eyebrow">Topplista</p>
+                <h2>Poängliga</h2>
+              </div>
+              ${renderStatsTable(
+                ["Spelare", "Lag", "GP", "G", "A", "PTS"],
+                overview.topPlayers.map(function(row) {
+                  return [
+                    renderPlayerLink(row),
+                    renderTeamLink(row.team),
+                    row.gp,
+                    row.g,
+                    row.a,
+                    row.pts
+                  ];
+                })
+              )}
+            </article>
+
+            <article class="detail-card">
+              <div class="section-heading compact">
+                <p class="eyebrow">Målvakter</p>
+                <h2>Topplista</h2>
+              </div>
+              ${renderStatsTable(
+                ["Spelare", "Lag", "GP", "SV%", "GAA", "SO"],
+                overview.topGoalies.map(function(row) {
+                  return [
+                    renderPlayerLink(row),
+                    renderTeamLink(row.team),
+                    row.gp,
+                    formatPercentage(row.svp),
+                    formatDecimal(row.gaa),
+                    row.so
+                  ];
+                })
+              )}
+            </article>
+          </div>
+
+          <section class="section">
+            <div class="section-heading">
+              <p class="eyebrow">Matcher</p>
+              <h2>Matchcenter</h2>
+            </div>
+            <div class="stage-stack">
+              ${overview.playoffMatches.length ? renderMatchCollection("Slutspel", overview.playoffMatches) : ""}
+              ${overview.groupMatches.length ? renderMatchCollection("Gruppspel", overview.groupMatches) : ""}
+              ${!cup.matches.length ? `<div class="empty-state">Inga matcher finns registrerade för den här cupen.</div>` : ""}
+            </div>
+          </section>
+        </section>
+
+        <section class="cup-tab-panel" data-cup-panel="tabell" role="tabpanel" hidden>
+          <div class="stack-grid">
+            ${groupStandings.length ? groupStandings.map(renderStandingsTable).join("") : `<div class="empty-state">Ingen gruppstatistik finns än.</div>`}
+          </div>
+        </section>
+
+        <section class="cup-tab-panel" data-cup-panel="slutspel" role="tabpanel" hidden>
+          ${renderPlayoffBracket(playoffRounds, overview.playoffMatches)}
+        </section>
+
+        <section class="cup-tab-panel" data-cup-panel="regler" role="tabpanel" hidden>
+          ${renderCupRules(cup)}
+        </section>
       </div>
     </section>
   `;
@@ -752,7 +792,7 @@ function renderTeamsIndex() {
     <section class="section-header-block">
       <p class="eyebrow">Lagregister</p>
       <h1 class="page-title">Alla lag</h1>
-      <p class="page-intro">Klicka in pa ett lag for att se cuper, matcher och spelare.</p>
+      <p class="page-intro">Klicka in på ett lag för att se cuper, matcher och spelare.</p>
     </section>
     <section class="entity-grid">
       ${state.teams.map(renderTeamCard).join("")}
@@ -782,7 +822,7 @@ function renderTeamPage(team) {
         <div>
           <p class="eyebrow">Lagprofil</p>
           <h1 class="page-title">${escapeHtml(team.name)}</h1>
-          <p class="page-intro">Matcher, cuper och spelarproduktion for laget.</p>
+          <p class="page-intro">Matcher, cuper och spelarproduktion för laget.</p>
         </div>
       </div>
     </section>
@@ -790,14 +830,14 @@ function renderTeamPage(team) {
     <section class="detail-grid">
       <article class="detail-card hero-stat-card"><span class="detail-label">Cuper</span><strong>${team.cups.length}</strong></article>
       <article class="detail-card hero-stat-card"><span class="detail-label">Vinster</span><strong>${team.wins}</strong></article>
-      <article class="detail-card hero-stat-card"><span class="detail-label">Mal for</span><strong>${team.goalsFor}</strong></article>
-      <article class="detail-card hero-stat-card"><span class="detail-label">Mal emot</span><strong>${team.goalsAgainst}</strong></article>
+      <article class="detail-card hero-stat-card"><span class="detail-label">Mål för</span><strong>${team.goalsFor}</strong></article>
+      <article class="detail-card hero-stat-card"><span class="detail-label">Mål emot</span><strong>${team.goalsAgainst}</strong></article>
     </section>
 
     <section class="two-column-section">
       <article class="detail-card">
         <div class="section-heading compact">
-          <p class="eyebrow">Poangproduktion</p>
+          <p class="eyebrow">Poängproduktion</p>
           <h2>Toppspelare</h2>
         </div>
         ${renderStatsTable(
@@ -841,7 +881,7 @@ function renderPlayersIndex() {
     <section class="section-header-block">
       <p class="eyebrow">Spelarregister</p>
       <h1 class="page-title">Alla spelare</h1>
-      <p class="page-intro">Klicka pa en spelare for att se total statistik och laghistorik.</p>
+      <p class="page-intro">Klicka på en spelare för att se total statistik och laghistorik.</p>
     </section>
     <section class="detail-card">
       ${renderStatsTable(
@@ -862,7 +902,7 @@ function renderPlayersIndex() {
 
 function renderPlayerPage(player) {
   const goalieGames = sumBy(player.goalieRows, "gp");
-  const latestTeam = player.teamNames[0] || "Okant lag";
+  const latestTeam = player.teamNames[0] || "Okänt lag";
   const isGoalieOnly = player.skaterRows.length === 0 && player.goalieRows.length > 0;
 
   return `
@@ -877,9 +917,9 @@ function renderPlayerPage(player) {
       <div class="player-page-heading">
         ${renderPlayerPortrait(player, "player-portrait-lg")}
         <div>
-          <p class="eyebrow">${isGoalieOnly ? "Malvaktsprofil" : "Spelarprofil"}</p>
+          <p class="eyebrow">${isGoalieOnly ? "Målvaktsprofil" : "Spelarprofil"}</p>
           <h1 class="page-title">${escapeHtml(player.name)}</h1>
-          <p class="page-intro">Total statistik over spelarens SEC-historik.</p>
+          <p class="page-intro">Total statistik över spelarens SEC-historik.</p>
         </div>
       </div>
     </section>
@@ -917,7 +957,7 @@ function renderPlayerPage(player) {
     ${player.goalieRows.length ? `
       <section class="detail-card">
         <div class="section-heading compact">
-          <p class="eyebrow">Malvakt</p>
+          <p class="eyebrow">Målvakt</p>
           <h2>Alla cuper</h2>
         </div>
         ${renderStatsTable(
@@ -958,7 +998,7 @@ function renderCupCard(cup) {
       <img class="cup-logo" src="./SECLOGGA.png" alt="Cup Logo">
       <a href="#/cup/${encodeURIComponent(cup.id)}">${escapeHtml(cup.name)}</a>
       <div class="cup-season">
-        Sasong: ${escapeHtml(seasonText)}<br>
+        Säsong: ${escapeHtml(seasonText)}<br>
         Datum: ${escapeHtml(dateLine)}<br>
         Matcher: ${cup.matchCount}<br>
         Vinnare: ${escapeHtml(cup.winner)}
@@ -976,7 +1016,7 @@ function renderTeamCard(team) {
         <h3>${escapeHtml(team.name)}</h3>
       </div>
       <p>${team.cups.length} cuper, ${team.matches.length} matcher</p>
-      <a class="inline-link" href="#/team/${encodeURIComponent(team.key)}">Oppna lag</a>
+      <a class="inline-link" href="#/team/${encodeURIComponent(team.key)}">Öppna lag</a>
     </article>
   `;
 }
@@ -1003,6 +1043,106 @@ function renderStandingsTable(group) {
         })
       )}
     </article>
+  `;
+}
+
+function renderPlayoffBracket(rounds, playoffMatches) {
+  if (!playoffMatches.length) {
+    return `<div class="empty-state">Inget slutspel finns registrerat för den här cupen än.</div>`;
+  }
+
+  return `
+    <section class="playoff-shell">
+      <div class="section-heading">
+        <p class="eyebrow">Slutspel</p>
+        <h2>Slutspelsträd</h2>
+      </div>
+      <div class="playoff-bracket">
+        ${rounds.map(function(round) {
+          return `
+            <article class="playoff-round">
+              <div class="playoff-round-title">${escapeHtml(round.name)}</div>
+              <div class="playoff-round-list">
+                ${round.matches.map(function(match) {
+                  return `
+                    <div class="playoff-match">
+                      <div class="playoff-team-row">
+                        <span>${escapeHtml(match.awayTeam)}</span>
+                        <strong>${displayScore(match.awayScore)}</strong>
+                      </div>
+                      <div class="playoff-team-row">
+                        <span>${escapeHtml(match.homeTeam)}</span>
+                        <strong>${displayScore(match.homeScore)}</strong>
+                      </div>
+                      <div class="playoff-match-meta">${escapeHtml(formatMatchDate(match.date, match.time) || match.group || "Slutspel")}</div>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderCupRules(cup) {
+  return `
+    <section class="rules-shell">
+      <div class="section-heading">
+        <p class="eyebrow">Regler</p>
+        <h2>${escapeHtml(cup.code)} regler</h2>
+      </div>
+      <div class="rules-grid">
+        <article class="detail-card">
+          <div class="section-heading compact">
+            <p class="eyebrow">Format</p>
+            <h2>Turnering</h2>
+          </div>
+          <div class="simple-list">
+            <div class="simple-list-item">Gruppspel avgör grundplacering och seeding till slutspelet.</div>
+            <div class="simple-list-item">Slutspelsmatcher avgör avancemang till nästa runda.</div>
+            <div class="simple-list-item">Resultat, tabeller och statistik uppdateras direkt på cupsidan.</div>
+          </div>
+        </article>
+
+        <article class="detail-card">
+          <div class="section-heading compact">
+            <p class="eyebrow">Poäng</p>
+            <h2>Gruppspel</h2>
+          </div>
+          <div class="simple-list">
+            <div class="simple-list-item">Vinst ger 3 poäng i tabellen.</div>
+            <div class="simple-list-item">Övertidsförlust ger 1 poäng.</div>
+            <div class="simple-list-item">Ordinarie förlust ger 0 poäng.</div>
+          </div>
+        </article>
+
+        <article class="detail-card">
+          <div class="section-heading compact">
+            <p class="eyebrow">Sortering</p>
+            <h2>Tabellordning</h2>
+          </div>
+          <div class="simple-list">
+            <div class="simple-list-item">Tabellen sorteras på poäng, målskillnad och gjorda mål.</div>
+            <div class="simple-list-item">Vid samma siffror visas lagen efter alfabetisk ordning i denna version.</div>
+          </div>
+        </article>
+
+        <article class="detail-card">
+          <div class="section-heading compact">
+            <p class="eyebrow">Cupdata</p>
+            <h2>Visning</h2>
+          </div>
+          <div class="simple-list">
+            <div class="simple-list-item">Topplistor hämtas från registrerad spelar- och målvaktsstatistik.</div>
+            <div class="simple-list-item">Slutspelsträdet byggs av matcher markerade som slutspel.</div>
+            <div class="simple-list-item">Sidan kan enkelt bytas till exakta SEC-regler när de finns i datan.</div>
+          </div>
+        </article>
+      </div>
+    </section>
   `;
 }
 
@@ -1038,14 +1178,14 @@ function renderMatchCard(match) {
         <strong>${displayScore(match.awayScore)} - ${displayScore(match.homeScore)}</strong>
         ${renderTeamIdentity(match.homeTeam)}
       </div>
-      <p class="match-summary">${escapeHtml(match.goalsSummary || "Ingen maltext registrerad.")}</p>
+      <p class="match-summary">${escapeHtml(match.goalsSummary || "Ingen måltext registrerad.")}</p>
     </article>
   `;
 }
 
 function renderStatsTable(headers, rows) {
   if (!rows.length) {
-    return `<div class="empty-state">Ingen data finns an.</div>`;
+    return `<div class="empty-state">Ingen data finns än.</div>`;
   }
 
   return `
@@ -1067,10 +1207,10 @@ function renderStatsTable(headers, rows) {
 function renderGlobalSearchModule() {
   return `
     <div class="player-search-centered home-search">
-      <div class="search-title">Sok lag &amp; spelare</div>
+      <div class="search-title">Sök lag &amp; spelare</div>
       <div class="search-wrapper">
-        <input id="globalSearch" placeholder="Sok lag eller spelare" autocomplete="off" aria-label="Sok lag eller spelare">
-        <div id="globalResults" role="listbox" aria-label="Sokresultat"></div>
+        <input id="globalSearch" placeholder="Sök lag eller spelare" autocomplete="off" aria-label="Sök lag eller spelare">
+        <div id="globalResults" role="listbox" aria-label="Sökresultat"></div>
       </div>
     </div>
   `;
@@ -1080,7 +1220,7 @@ function renderLoadingState() {
   return `
     <section class="tab-panel">
       <h2>Laddar</h2>
-      <div class="cup-status">Hamtar SEC-data...</div>
+      <div class="cup-status">Hämtar SEC-data...</div>
     </section>
   `;
 }
@@ -1112,6 +1252,7 @@ function setView(html) {
 function bindViewInteractions() {
   bindCupCardLinks();
   bindGlobalSearch();
+  bindCupTabs();
 }
 
 function bindCupCardLinks() {
@@ -1212,6 +1353,39 @@ function bindGlobalSearch() {
     if (!results.contains(event.target) && event.target !== input) {
       closeResults();
     }
+  });
+}
+
+function bindCupTabs() {
+  const tabs = Array.from(document.querySelectorAll("[data-cup-tab]"));
+  const panels = Array.from(document.querySelectorAll("[data-cup-panel]"));
+
+  if (!tabs.length || !panels.length) {
+    return;
+  }
+
+  tabs.forEach(function(tab) {
+    if (tab.dataset.bound === "true") {
+      return;
+    }
+
+    tab.dataset.bound = "true";
+
+    tab.addEventListener("click", function() {
+      const target = tab.getAttribute("data-cup-tab");
+
+      tabs.forEach(function(button) {
+        const active = button === tab;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+      });
+
+      panels.forEach(function(panel) {
+        const active = panel.getAttribute("data-cup-panel") === target;
+        panel.classList.toggle("is-active", active);
+        panel.hidden = !active;
+      });
+    });
   });
 }
 
@@ -1361,6 +1535,35 @@ function buildGroupStandings(matches) {
       name: entry[0],
       rows: rows
     };
+  });
+}
+
+function buildPlayoffRounds(matches) {
+  const playoffMatches = matches.filter(function(match) {
+    return match.stage === "playoffs";
+  });
+
+  const rounds = new Map();
+
+  playoffMatches.forEach(function(match) {
+    const raw = String(match.group || "Slutspel").trim();
+    const key = raw.toLowerCase();
+    const sortOrder = inferPlayoffRoundOrder(raw);
+
+    if (!rounds.has(key)) {
+      rounds.set(key, {
+        key: key,
+        name: raw,
+        sortOrder: sortOrder,
+        matches: []
+      });
+    }
+
+    rounds.get(key).matches.push(match);
+  });
+
+  return Array.from(rounds.values()).sort(function(a, b) {
+    return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "sv");
   });
 }
 
@@ -1613,6 +1816,30 @@ function inferSortOrder(id) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function inferPlayoffRoundOrder(name) {
+  const value = String(name || "").toLowerCase();
+
+  if (value.indexOf("attondel") !== -1) {
+    return 1;
+  }
+  if (value.indexOf("sexton") !== -1) {
+    return 1;
+  }
+  if (value.indexOf("kvarts") !== -1) {
+    return 2;
+  }
+  if (value.indexOf("semi") !== -1) {
+    return 3;
+  }
+  if (value.indexOf("brons") !== -1) {
+    return 4;
+  }
+  if (value.indexOf("final") !== -1) {
+    return 5;
+  }
+  return 10;
+}
+
 function uniqueBy(items, key) {
   const map = new Map();
   items.forEach(function(item) {
@@ -1628,7 +1855,7 @@ function sumBy(items, key) {
 }
 
 function showFatalError(error) {
-  const message = typeof error === "string" ? error : error?.message || "Ett ovantat fel uppstod.";
+  const message = typeof error === "string" ? error : error?.message || "Ett oväntat fel uppstod.";
   if (appView) {
     appView.innerHTML = renderErrorState("JavaScript-fel: " + message);
   }
