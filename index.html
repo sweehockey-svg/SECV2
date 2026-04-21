@@ -8,35 +8,62 @@
     name="description"
     content="Svensk eHockey samlar Svenska eHockey Cupen med matcher, tabeller, lag och spelarstatistik i ett gemensamt arkiv."
   >
+  <link rel="icon" type="image/png" href="./SECLOGGA.png">
+  <link rel="apple-touch-icon" href="./SECLOGGA.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="page-shell">
-    <header class="site-header">
+  <header class="topbar">
+    <div class="container topbar__inner">
       <a class="brand" href="#/" aria-label="Svensk eHockey">
-        <span class="brand-logo-shell">
-          <img class="brand-logo" src="./SECLOGGA.png" alt="SEC logga">
-        </span>
-        <span class="brand-text">
-          <strong>Svensk eHockey</strong>
-          <span>Officiell hubb fÃ¶r SEC-cuperna</span>
-        </span>
+        <img class="brand__logo" src="./SECLOGGA.png" alt="Svensk eHockey">
       </a>
 
-      <nav class="site-nav" aria-label="Huvudmeny">
-        <a href="#/">Start</a>
-        <a href="#/cups">Cuper</a>
-        <a href="#/teams">Lag</a>
-        <a href="#/players">Spelare</a>
+      <nav class="nav" aria-label="Huvudmeny">
+        <a class="nav__link is-active" href="#/">Startsida</a>
+        <a class="nav__link" href="#/cups">Cuper</a>
+        <a class="nav__link" href="#/teams">Lag</a>
+        <a class="nav__link" href="#/players">Spelare</a>
+        <button class="iconbtn" type="button" aria-label="Sok" title="Sok">
+          🔍
+        </button>
       </nav>
-    </header>
 
+      <button class="hamburger" type="button" aria-label="Oppna meny" data-mobile-toggle>☰</button>
+    </div>
+
+    <div class="mobile" data-mobile-menu>
+      <div class="container mobile__inner">
+        <a class="mobile__link is-active" href="#/">Startsida</a>
+        <a class="mobile__link" href="#/cups">Cuper</a>
+        <a class="mobile__link" href="#/teams">Lag</a>
+        <a class="mobile__link" href="#/players">Spelare</a>
+      </div>
+    </div>
+  </header>
+
+  <div id="sec-bg-layer">
+    <div class="smoke-layer smoke-back"></div>
+    <div class="smoke-layer"></div>
+  </div>
+
+  <div id="sec-page">
     <main id="app-view"></main>
   </div>
 
+  <script>
+    (function () {
+      const mobileBtn = document.querySelector("[data-mobile-toggle]");
+      const mobileMenu = document.querySelector("[data-mobile-menu]");
+
+      mobileBtn?.addEventListener("click", function () {
+        mobileMenu?.classList.toggle("open");
+      });
+    })();
+  </script>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
