@@ -1,6 +1,5 @@
 :root {
   --bg: #06111f;
-  --bg-strong: #09182a;
   --surface: rgba(8, 23, 39, 0.82);
   --surface-strong: rgba(10, 28, 47, 0.94);
   --text: #edf5ff;
@@ -15,7 +14,8 @@
   --radius-xl: 32px;
   --radius-lg: 24px;
   --radius-md: 18px;
-  --max-width: 1200px;
+  --radius-sm: 12px;
+  --max-width: 1260px;
 }
 
 * {
@@ -49,6 +49,15 @@ body::before {
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent 86%);
 }
 
+a {
+  color: #dff0ff;
+  text-decoration: none;
+}
+
+a:hover {
+  color: white;
+}
+
 .page-shell {
   width: min(calc(100% - 32px), var(--max-width));
   margin: 0 auto;
@@ -58,7 +67,7 @@ body::before {
 .site-header {
   position: sticky;
   top: 16px;
-  z-index: 10;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -76,8 +85,6 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 14px;
-  text-decoration: none;
-  color: inherit;
 }
 
 .brand-logo-shell {
@@ -107,7 +114,10 @@ body::before {
 .panel-label,
 .cup-code,
 .cup-badge,
-.champion-cup {
+.champion-cup,
+.entity-label,
+.detail-label,
+.pill {
   font-family: "Barlow Condensed", sans-serif;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -130,9 +140,13 @@ body::before {
 }
 
 .site-nav a {
-  text-decoration: none;
   color: #dbeeff;
   font-size: 1.05rem;
+}
+
+#app-view {
+  display: grid;
+  gap: 28px;
 }
 
 .hero {
@@ -146,7 +160,11 @@ body::before {
 .hero-panel,
 .section-highlight,
 .cup-card,
-.info-card {
+.info-card,
+.detail-card,
+.entity-card,
+.match-card,
+.section-header-block {
   border: 1px solid var(--line);
   background: var(--surface);
   backdrop-filter: blur(18px);
@@ -187,17 +205,17 @@ h3 {
   line-height: 0.95;
 }
 
-h1 {
-  max-width: 10ch;
-  font-size: clamp(3.2rem, 10vw, 6.8rem);
+.hero h1,
+.page-title {
+  font-size: clamp(3rem, 9vw, 6rem);
 }
 
 h2 {
-  font-size: clamp(2.2rem, 5vw, 4rem);
+  font-size: clamp(2rem, 5vw, 3.4rem);
 }
 
 h3 {
-  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-size: clamp(1.3rem, 2.8vw, 1.9rem);
 }
 
 .hero-text,
@@ -205,22 +223,39 @@ h3 {
 .info-card p,
 .champion-meta,
 .cup-stage-note,
-.cup-summary dt {
+.cup-summary dt,
+.entity-card p,
+.page-intro,
+.hero-panel-footer p,
+.match-summary,
+.breadcrumbs,
+.simple-list-item,
+.empty-state {
   color: var(--muted);
 }
 
-.hero-text {
-  max-width: 60ch;
-  margin: 18px 0 0;
-  font-size: 1.08rem;
+.hero-text,
+.page-intro,
+.hero-panel-footer p,
+.match-summary,
+.info-card p,
+.section-heading p {
   line-height: 1.7;
 }
 
-.hero-actions {
+.hero-actions,
+.section-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
+}
+
+.hero-actions {
   margin-top: 30px;
+}
+
+.section-actions {
+  margin-top: 24px;
 }
 
 .button {
@@ -230,7 +265,6 @@ h3 {
   min-height: 52px;
   padding: 0 22px;
   border-radius: 999px;
-  text-decoration: none;
   font-weight: 800;
 }
 
@@ -253,7 +287,8 @@ h3 {
   margin-top: 24px;
 }
 
-.hero-strip span {
+.hero-strip span,
+.pill {
   padding: 10px 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -262,10 +297,19 @@ h3 {
   font-size: 0.94rem;
 }
 
-.hero-stats {
+.hero-stats,
+.detail-grid,
+.champions-grid,
+.cups-grid,
+.info-grid,
+.entity-grid,
+.two-column-section {
   display: grid;
+  gap: 18px;
+}
+
+.hero-stats {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
   margin: 36px 0 0;
 }
 
@@ -273,24 +317,40 @@ h3 {
 .hero-panel-grid article,
 .champion-card,
 .info-card,
-.cup-card {
+.cup-card,
+.detail-card,
+.entity-card,
+.match-card {
   animation: rise-in 0.65s ease both;
 }
 
-.hero-stats div {
+.hero-stats div,
+.hero-panel-grid article,
+.cup-summary div,
+.entity-card,
+.match-card,
+.detail-card,
+.info-card {
+  border-radius: var(--radius-md);
+}
+
+.hero-stats div,
+.cup-summary div,
+.detail-card,
+.entity-card,
+.match-card,
+.info-card {
   padding: 18px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.04);
 }
 
-.hero-stats dt {
+.hero-stats dt,
+.detail-label {
   margin-bottom: 8px;
   font-size: 0.82rem;
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--muted);
 }
 
 .hero-stats dd {
@@ -339,7 +399,6 @@ h3 {
 .hero-panel-grid article {
   padding: 18px;
   border: 1px solid rgba(141, 182, 227, 0.16);
-  border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -359,53 +418,62 @@ h3 {
   border-top: 1px solid rgba(141, 182, 227, 0.12);
 }
 
-.hero-panel-footer p {
-  margin: 0;
-  color: #c0d6eb;
-  line-height: 1.65;
+.section,
+.stack-grid {
+  display: grid;
+  gap: 18px;
 }
 
-.section {
-  margin-top: 28px;
-  padding: 38px 0 0;
+.section-highlight,
+.section-header-block,
+.section-alt {
+  padding: 32px;
+  border-radius: var(--radius-xl);
 }
 
 .section-highlight {
-  padding: 32px;
-  border-radius: var(--radius-xl);
   background:
     linear-gradient(180deg, rgba(7, 20, 34, 0.92), rgba(10, 28, 47, 0.92)),
     linear-gradient(135deg, rgba(75, 167, 255, 0.08), transparent);
 }
 
-.section-alt {
-  padding: 34px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
+.section-alt,
+.section-header-block {
   background: linear-gradient(180deg, rgba(10, 27, 46, 0.88), rgba(7, 18, 31, 0.9));
 }
 
-.section-heading {
-  display: grid;
+.section-heading,
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+.section-heading {
+  flex-direction: column;
   max-width: 60ch;
 }
 
-.section-heading p {
-  margin: 0;
-  line-height: 1.7;
+.section-heading.compact {
+  gap: 6px;
+}
+
+.breadcrumbs {
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
 }
 
 .champions-grid,
-.cups-grid,
-.info-grid {
-  display: grid;
-  gap: 18px;
+.info-grid,
+.detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.champions-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 26px;
+.cups-grid,
+.two-column-section,
+.entity-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .champion-card {
@@ -427,16 +495,11 @@ h3 {
   margin-bottom: 10px;
 }
 
-.champion-meta {
-  margin: 0;
-}
-
 .controls {
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
   align-items: end;
-  margin-top: 28px;
 }
 
 .search-field,
@@ -466,11 +529,6 @@ h3 {
   color: var(--text);
 }
 
-.cups-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 24px;
-}
-
 .cup-card {
   display: grid;
   gap: 20px;
@@ -478,13 +536,16 @@ h3 {
   border-radius: var(--radius-lg);
 }
 
-.cup-card-top {
+.cup-card-top,
+.match-header,
+.match-score {
   display: flex;
   justify-content: space-between;
   gap: 20px;
 }
 
-.cup-code {
+.cup-code,
+.entity-label {
   margin: 0 0 8px;
   color: var(--ice);
   font-size: 1rem;
@@ -510,13 +571,6 @@ h3 {
   margin: 0;
 }
 
-.cup-summary div {
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.04);
-}
-
 .cup-summary dd {
   margin: 0;
   font-size: 1.05rem;
@@ -525,31 +579,81 @@ h3 {
 }
 
 .cup-footer {
+  display: grid;
+  gap: 12px;
   padding-top: 4px;
   border-top: 1px solid var(--line);
 }
 
-.cup-stage-note {
-  margin: 0;
+.entity-card,
+.match-card {
+  display: grid;
+  gap: 12px;
 }
 
-.info-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 28px;
+.entity-card.small h3 {
+  font-size: 1.4rem;
 }
 
-.info-card {
-  padding: 24px;
-  border-radius: var(--radius-lg);
+.inline-link {
+  color: var(--ice);
+  font-weight: 800;
 }
 
-.info-card h3 {
-  margin-bottom: 12px;
+.detail-card.hero-stat-card strong {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 2.3rem;
 }
 
-.info-card p {
-  margin: 0;
-  line-height: 1.7;
+.table-wrap {
+  overflow-x: auto;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.stats-table th {
+  color: var(--ice);
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.simple-list {
+  display: grid;
+  gap: 10px;
+}
+
+.simple-list-item {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.muted-item {
+  color: #c3d6ea;
+}
+
+.match-score {
+  align-items: center;
+  font-size: 1.05rem;
+}
+
+.match-score strong {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 2rem;
 }
 
 .empty-state {
@@ -557,7 +661,6 @@ h3 {
   border: 1px dashed var(--line-strong);
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.03);
-  color: var(--muted);
 }
 
 input::placeholder {
@@ -588,25 +691,19 @@ select:focus,
   }
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1100px) {
   .hero,
   .champions-grid,
   .cups-grid,
-  .info-grid {
+  .info-grid,
+  .entity-grid,
+  .two-column-section,
+  .detail-grid {
     grid-template-columns: 1fr;
-  }
-
-  .site-header {
-    display: grid;
-    justify-content: unset;
-  }
-
-  .hero-panel-brand {
-    align-items: flex-start;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 700px) {
   .page-shell {
     width: min(calc(100% - 20px), var(--max-width));
     padding-top: 12px;
@@ -614,6 +711,8 @@ select:focus,
 
   .site-header {
     position: static;
+    display: grid;
+    justify-content: unset;
     border-radius: 28px;
   }
 
@@ -621,8 +720,12 @@ select:focus,
   .hero-panel,
   .section-highlight,
   .section-alt,
+  .section-header-block,
   .cup-card,
-  .info-card {
+  .detail-card,
+  .info-card,
+  .entity-card,
+  .match-card {
     padding: 22px;
   }
 
@@ -636,13 +739,14 @@ select:focus,
     height: 34px;
   }
 
-  h1 {
+  .hero h1,
+  .page-title {
     max-width: 9ch;
-    font-size: clamp(2.8rem, 18vw, 4.7rem);
+    font-size: clamp(2.6rem, 15vw, 4.6rem);
   }
 
   h2 {
-    font-size: clamp(2rem, 12vw, 3rem);
+    font-size: clamp(1.8rem, 9vw, 2.8rem);
   }
 
   .hero-stats,
@@ -650,7 +754,9 @@ select:focus,
     grid-template-columns: 1fr;
   }
 
-  .controls {
+  .controls,
+  .match-header,
+  .match-score {
     flex-direction: column;
     align-items: stretch;
   }
