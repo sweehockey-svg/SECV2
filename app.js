@@ -1,9 +1,3 @@
-03:05
-3 filer har ändrats
-+2114
--0
-Ångra
-app.js
 const DATA_SOURCES = {
   sheet: window.SEC_CONFIG?.sheetUrl || "",
   database: window.SEC_CONFIG?.databaseUrl || ""
@@ -76,6 +70,12 @@ const state = {
 const appView = document.querySelector("#app-view");
 
 window.addEventListener("hashchange", renderCurrentRoute);
+window.addEventListener("error", function(event) {
+  showFatalError(event.error || event.message || "Okänt fel i JavaScript.");
+});
+window.addEventListener("unhandledrejection", function(event) {
+  showFatalError(event.reason || "Ohanterat fel i Promise.");
+});
 
 init();
 
@@ -92,7 +92,7 @@ async function init() {
     renderCurrentRoute();
   } catch (error) {
     console.error(error);
-    appView.innerHTML = renderErrorState("Kunde inte ladda SEC-data. Kontrollera config.js och JSON-filerna.");
+    setView(renderErrorState("Kunde inte ladda SEC-data. Kontrollera config.js och JSON-filerna."));
   }
 }
 
@@ -441,52 +441,57 @@ function buildPlayers(cups) {
 }
 
 function renderCurrentRoute() {
-  if (!state.ready) {
-    appView.innerHTML = renderLoadingState();
-    return;
+  try {
+    if (!state.ready) {
+      setView(renderLoadingState());
+      return;
+    }
+
+    const route = parseRoute();
+
+    if (route.type === "home") {
+      setView(renderHomePage());
+      return;
+    }
+
+    if (route.type === "cups") {
+      setView(renderCupsIndex());
+      return;
+    }
+
+    if (route.type === "cup") {
+      const cup = state.cups.find(function(entry) { return entry.id === route.id; });
+      setView(cup ? renderCupPage(cup) : renderNotFound("Cupen kunde inte hittas."));
+      return;
+    }
+
+    if (route.type === "teams") {
+      setView(renderTeamsIndex());
+      return;
+    }
+
+    if (route.type === "team") {
+      const team = state.teams.find(function(entry) { return entry.key === route.id; });
+      setView(team ? renderTeamPage(team) : renderNotFound("Laget kunde inte hittas."));
+      return;
+    }
+
+    if (route.type === "players") {
+      setView(renderPlayersIndex());
+      return;
+    }
+
+    if (route.type === "player") {
+      const player = state.players.find(function(entry) { return entry.key === route.id; });
+      setView(player ? renderPlayerPage(player) : renderNotFound("Spelaren kunde inte hittas."));
+      return;
+    }
+
+    setView(renderNotFound("Sidan kunde inte hittas."));
+  } catch (error) {
+    console.error(error);
+    showFatalError(error);
   }
-
-  const route = parseRoute();
-
-  if (route.type === "home") {
-    appView.innerHTML = renderHomePage();
-    return;
-  }
-
-  if (route.type === "cups") {
-    appView.innerHTML = renderCupsIndex();
-    return;
-  }
-
-  if (route.type === "cup") {
-    const cup = state.cups.find(function(entry) { return entry.id === route.id; });
-    appView.innerHTML = cup ? renderCupPage(cup) : renderNotFound("Cupen kunde inte hittas.");
-    return;
-  }
-
-  if (route.type === "teams") {
-    appView.innerHTML = renderTeamsIndex();
-    return;
-  }
-
-  if (route.type === "team") {
-    const team = state.teams.find(function(entry) { return entry.key === route.id; });
-    appView.innerHTML = team ? renderTeamPage(team) : renderNotFound("Laget kunde inte hittas.");
-    return;
-  }
-
-  if (route.type === "players") {
-    appView.innerHTML = renderPlayersIndex();
-    return;
-  }
-
-  if (route.type === "player") {
-    const player = state.players.find(function(entry) { return entry.key === route.id; });
-    appView.innerHTML = player ? renderPlayerPage(player) : renderNotFound("Spelaren kunde inte hittas.");
-    return;
-  }
-
-  appView.innerHTML = renderNotFound("Sidan kunde inte hittas.");
 }
 
 function renderHomePage() {
@@ -825,7 +830,7 @@ function renderPlayersIndex() {
       <p class="page-intro">Klicka på en spelare för att se cuphistorik, total statistik och tillhörande lag.</p>
     </section>
     <section class="detail-card">
-      ${renderStatsTable(
+      ${topPlayers.length ? renderStatsTable(
         ["Spelare", "Lag", "Cuper", "GP", "PTS"],
         topPlayers.map(function(player) {
           return [
@@ -836,7 +841,7 @@ function renderPlayersIndex() {
             player.totals.pts
           ];
         })
-      )}
+      ) : `<div class="empty-state">Det finns inga spelare att visa ännu.</div>`}
     </section>
   `;
 }
@@ -1066,6 +1071,25 @@ function renderLoadingState() {
       <div class="empty-state">Laddar SEC-data...</div>
     </section>
   `;
+}
+
+function setView(html) {
+  if (!appView) {
+    throw new Error("Saknar #app-view i index.html.");
+  }
+  appView.innerHTML = html;
+}
+
+function showFatalError(error) {
+  const message = typeof error === "string"
+    ? error
+    : error && error.message
+      ? error.message
+      : "Ett oväntat fel uppstod i sidan.";
+
+  if (appView) {
+    appView.innerHTML = renderErrorState("JavaScript-fel: " + message);
+  }
 }
 
 function buildGroupStandings(matches) {
