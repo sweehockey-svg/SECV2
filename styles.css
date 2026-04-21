@@ -149,6 +149,21 @@ a:hover {
   gap: 28px;
 }
 
+.portal-grid,
+.spotlight-grid,
+.stage-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.portal-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.spotlight-grid {
+  grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 0.9fr));
+}
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
@@ -431,6 +446,17 @@ h3 {
   border-radius: var(--radius-xl);
 }
 
+.cup-hero,
+.cup-subnav,
+.portal-card,
+.spotlight-card,
+.stage-block {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
+}
+
 .section-highlight {
   background:
     linear-gradient(180deg, rgba(7, 20, 34, 0.92), rgba(10, 28, 47, 0.92)),
@@ -440,6 +466,121 @@ h3 {
 .section-alt,
 .section-header-block {
   background: linear-gradient(180deg, rgba(10, 27, 46, 0.88), rgba(7, 18, 31, 0.9));
+}
+
+.cup-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+  gap: 22px;
+  padding: 32px;
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(circle at top right, rgba(241, 181, 72, 0.12), transparent 30%),
+    linear-gradient(135deg, rgba(8, 28, 47, 0.96), rgba(7, 18, 31, 0.98));
+}
+
+.cup-hero-main,
+.cup-hero-side,
+.stage-block {
+  display: grid;
+  gap: 18px;
+}
+
+.cup-hero-actions,
+.summary-ribbon,
+.cup-subnav .breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.summary-ribbon span {
+  padding: 10px 14px;
+  border: 1px solid rgba(141, 182, 227, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #dfeeff;
+  font-size: 0.95rem;
+}
+
+.cup-hero-side {
+  align-content: start;
+  padding: 24px;
+  border: 1px solid rgba(141, 182, 227, 0.14);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cup-side-note,
+.featured-match-card,
+.compact-match,
+.portal-card,
+.spotlight-card,
+.stage-block {
+  border-radius: var(--radius-lg);
+}
+
+.cup-side-note,
+.featured-match-card,
+.compact-match {
+  padding: 16px;
+  border: 1px solid rgba(141, 182, 227, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cup-finals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: center;
+}
+
+.cup-finals-team {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.cup-finals-team strong {
+  font-size: 1.1rem;
+}
+
+.cup-finals-team span,
+.compact-match-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.cup-finals-divider {
+  display: grid;
+  place-items: center;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.cup-subnav {
+  padding: 16px 20px;
+  border-radius: 999px;
+  background: rgba(8, 23, 39, 0.88);
+}
+
+.cup-subnav .breadcrumbs {
+  margin: 0;
+}
+
+.cup-subnav a {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.cup-subnav a:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .section-heading,
@@ -493,6 +634,64 @@ h3 {
 
 .champion-team {
   margin-bottom: 10px;
+}
+
+.portal-card,
+.spotlight-card,
+.stage-block {
+  padding: 24px;
+}
+
+.portal-card {
+  display: grid;
+  gap: 14px;
+  background:
+    linear-gradient(180deg, rgba(9, 24, 41, 0.94), rgba(7, 18, 31, 0.98)),
+    linear-gradient(135deg, rgba(75, 167, 255, 0.1), transparent);
+}
+
+.portal-card h3,
+.spotlight-card h3 {
+  font-size: 1.8rem;
+}
+
+.spotlight-card {
+  display: grid;
+  gap: 14px;
+  background:
+    linear-gradient(180deg, rgba(10, 27, 46, 0.92), rgba(8, 20, 34, 0.96)),
+    linear-gradient(135deg, rgba(75, 167, 255, 0.08), transparent);
+}
+
+.spotlight-card-main {
+  background:
+    linear-gradient(180deg, rgba(12, 34, 57, 0.94), rgba(8, 22, 36, 0.98)),
+    linear-gradient(135deg, rgba(241, 181, 72, 0.14), transparent);
+}
+
+.stage-block {
+  background:
+    linear-gradient(180deg, rgba(10, 27, 46, 0.9), rgba(7, 18, 31, 0.94)),
+    linear-gradient(135deg, rgba(75, 167, 255, 0.06), transparent);
+}
+
+.stage-block-header,
+.compact-match-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.compact-match {
+  display: grid;
+  gap: 12px;
+}
+
+.compact-match-row strong {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 1.8rem;
+  white-space: nowrap;
 }
 
 .champion-brand,
@@ -826,12 +1025,15 @@ select:focus,
 
 @media (max-width: 1100px) {
   .hero,
+  .cup-hero,
   .champions-grid,
   .cups-grid,
   .info-grid,
   .entity-grid,
   .two-column-section,
-  .detail-grid {
+  .detail-grid,
+  .portal-grid,
+  .spotlight-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -851,9 +1053,14 @@ select:focus,
 
   .hero-copy,
   .hero-panel,
+  .cup-hero,
+  .cup-subnav,
   .section-highlight,
   .section-alt,
   .section-header-block,
+  .portal-card,
+  .spotlight-card,
+  .stage-block,
   .cup-card,
   .detail-card,
   .info-card,
@@ -889,7 +1096,10 @@ select:focus,
 
   .controls,
   .match-header,
-  .match-score {
+  .match-score,
+  .stage-block-header,
+  .compact-match-row,
+  .cup-finals {
     flex-direction: column;
     align-items: stretch;
   }
@@ -901,6 +1111,15 @@ select:focus,
   .player-page-heading,
   .player-identity {
     align-items: flex-start;
+  }
+
+  .cup-finals {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .cup-finals-divider {
+    justify-self: start;
   }
 
   .match-score .team-identity:last-child {
