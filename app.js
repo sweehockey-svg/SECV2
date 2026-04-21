@@ -839,7 +839,7 @@ function renderPlayersIndex() {
         ["Spelare", "Lag", "Cuper", "GP", "PTS"],
         topPlayers.map(function(player) {
           return [
-            `<a href="#/player/${encodeURIComponent(player.key)}">${escapeHtml(player.name)}</a>`,
+            renderPlayerIdentity(player),
             escapeHtml(player.teamNames.join(", ")),
             player.cups.length,
             player.totals.gp,
@@ -864,9 +864,14 @@ function renderPlayerPage(player) {
         <span>/</span>
         <strong>${escapeHtml(player.name)}</strong>
       </div>
-      <p class="eyebrow">${isGoalieOnly ? "Målvaktsprofil" : "Spelarprofil"}</p>
-      <h1 class="page-title">${escapeHtml(player.name)}</h1>
-      <p class="page-intro">Statistik över alla registrerade SEC-cuper, lag och prestationer.</p>
+      <div class="player-page-heading">
+        ${renderPlayerPortrait(player, "player-portrait-lg")}
+        <div>
+          <p class="eyebrow">${isGoalieOnly ? "Målvaktsprofil" : "Spelarprofil"}</p>
+          <h1 class="page-title">${escapeHtml(player.name)}</h1>
+          <p class="page-intro">Statistik över alla registrerade SEC-cuper, lag och prestationer.</p>
+        </div>
+      </div>
     </section>
 
     <section class="detail-grid">
@@ -1240,6 +1245,16 @@ function renderTeamIdentity(teamName, size) {
   `;
 }
 
+function renderPlayerIdentity(player) {
+  const href = "#/player/" + encodeURIComponent(player.key);
+  return `
+    <a class="player-identity" href="${href}">
+      ${renderPlayerPortrait(player, "player-portrait-sm")}
+      <span class="player-identity-text">${escapeHtml(player.name)}</span>
+    </a>
+  `;
+}
+
 function renderTeamLogo(teamName, sizeClass) {
   if (!teamName) {
     return `<span class="team-logo-wrap ${sizeClass || "team-logo-sm"} is-missing"></span>`;
@@ -1269,6 +1284,42 @@ function getTeamLogoBaseUrl() {
 
 function renderPlayerLink(row) {
   return `<a href="#/player/${encodeURIComponent(createPlayerKey(row))}">${escapeHtml(row.player)}</a>`;
+}
+
+function renderPlayerPortrait(player, sizeClass) {
+  const filename = getPlayerImageFilename(player);
+
+  if (!filename) {
+    return `<span class="player-portrait-wrap ${sizeClass || "player-portrait-sm"} is-missing"></span>`;
+  }
+
+  const src = getPlayerImageBaseUrl() + "/" + encodeURIComponent(filename);
+  return `
+    <span class="player-portrait-wrap ${sizeClass || "player-portrait-sm"}">
+      <img
+        class="player-portrait-image"
+        src="${escapeHtml(src)}"
+        alt="${escapeHtml(player.name)} spelarkort"
+        loading="lazy"
+        onerror="this.style.display='none';this.parentElement.classList.add('is-missing');"
+      >
+    </span>
+  `;
+}
+
+function getPlayerImageFilename(player) {
+  const baseName = getPlayerImageStem(player?.name || player?.player || "");
+  return baseName ? baseName + ".jpg" : "";
+}
+
+function getPlayerImageStem(playerName) {
+  return String(playerName || "")
+    .split(",")[0]
+    .trim();
+}
+
+function getPlayerImageBaseUrl() {
+  return String(window.SEC_CONFIG?.playerImageBaseUrl || "https://sweehockey-svg.github.io/players").replace(/\/+$/, "");
 }
 
 function formatPlayerLabel(player) {
