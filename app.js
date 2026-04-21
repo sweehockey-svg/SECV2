@@ -500,153 +500,116 @@ function renderCurrentRoute() {
     showFatalError(error);
   }
 }
-
 function renderHomePage() {
-  const topChampions = state.cups.filter(function(cup) {
-    return cup.winner && cup.winner !== "Ej klar";
-  }).slice(0, 3);
-  const featuredCup = state.cups[0] || null;
-  const featuredOverview = featuredCup ? getCupOverview(featuredCup) : null;
+  const categories = splitCupsByCategory(state.cups);
+  const totalMatches = sumBy(state.cups, "matchCount");
+  const totalTeams = state.teams.length;
 
   return `
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">Svenska eHockey Cupen</p>
-        <h1>SEC-hubben for cuper, matcher, tabeller och profiler.</h1>
-        <p class="hero-text">
-          Har samlas hela historiken for Svensk eHockey. Fran tidigare SEC-turneringar till nya cuper i databasen, allt i ett tydligare matchcenter med lag, spelare och statistik.
-        </p>
-        <div class="hero-actions">
-          <a class="button button-primary" href="#/cups">Se alla cuper</a>
-          <a class="button button-secondary" href="#/teams">Se alla lag</a>
+    <section class="sec-index-shell">
+      <a href="#/" class="sec-header-link" aria-label="Svenska eHockey Cupen">
+        <div class="sfc-header">
+          <img class="sfc-logo" src="./SECLOGGA.png" alt="SEC Logo">
+          <div class="sfc-title">Svenska eHockey <strong>Cupen</strong></div>
+          <div class="sfc-divider"></div>
         </div>
-        <div class="hero-strip">
-          <span>${state.cups.length} cuper</span>
-          <span>${sumBy(state.cups, "matchCount")} matcher</span>
-          <span>${state.players.length} spelare</span>
-        </div>
-        <dl class="hero-stats">
-          <div><dt>Cuper</dt><dd>${state.cups.length}</dd></div>
-          <div><dt>Matcher</dt><dd>${sumBy(state.cups, "matchCount")}</dd></div>
-          <div><dt>Spelare</dt><dd>${state.players.length}</dd></div>
-        </dl>
-      </div>
+      </a>
 
-      <aside class="hero-panel">
-        <div class="hero-panel-brand">
-          <img class="hero-panel-logo" src="./SECLOGGA.png" alt="SEC logga">
-          <div>
-            <p class="panel-label">Sasongsoversikt</p>
-            <h2 class="panel-title">SEC Control Center</h2>
+      ${renderGlobalSearchModule()}
+
+      <section class="tab-panel info-panel">
+        <h2>Valkommen</h2>
+        <p>
+          Valkommen till Svenska eHockey Cupen, en samlad hubb for SEC med matcher, tabeller,
+          slutspel, lag och spelarstatistik i samma arkiv. Har bygger vi vidare pa samma upplagg
+          som din nuvarande sida, men kopplar det till den nya datamodellen sa att varje cup blir
+          enklare att uppdatera och enklare att hitta i.
+        </p>
+        <p>
+          Just nu finns <strong>${state.cups.length}</strong> cuper, <strong>${totalMatches}</strong> matcher,
+          <strong>${totalTeams}</strong> lag och <strong>${state.players.length}</strong> spelare i arkivet.
+        </p>
+      </section>
+
+      <section class="tab-panel cups-panel">
+        <h2>Valj turnering</h2>
+        <div class="cup-status">
+          Visar ${state.cups.length} cup${state.cups.length === 1 ? "" : "er"} (SEC: ${categories.regular.length}, Sommar: ${categories.sommar.length}${categories.challenger.length ? ", Challenger: " + categories.challenger.length : ""}).
+        </div>
+
+        <div class="cup-section">
+          <h3 class="cup-section-title">Svenska eHockey Cupen</h3>
+          <div class="cup-list">
+            ${categories.regular.length ? categories.regular.map(renderCupCard).join("") : renderEmptyCupState("Inga vanliga SEC-cuper hittades.")}
           </div>
         </div>
-        <div class="hero-panel-grid">
-          <article><span>Format</span><strong>Gruppspel + slutspel</strong></article>
-          <article><span>Struktur</span><strong>Portal + profiler</strong></article>
-          <article><span>Data</span><strong>Sheet + databas</strong></article>
-          <article><span>Fokus</span><strong>Matcher och statistik</strong></article>
-        </div>
-        <div class="hero-panel-footer">
-          <p>Designriktningen ar mer sportportal an katalog, sa varje cup blir en tydlig ingang till matchcenter, tabeller och toppnamn.</p>
-        </div>
-      </aside>
-    </section>
 
-    ${featuredCup && featuredOverview ? `
-      <section class="section section-alt">
-        <div class="section-heading">
-          <p class="eyebrow">Spotlight</p>
-          <h2>${escapeHtml(featuredCup.code)} i fokus</h2>
-          <p>Den senaste cupen far en tydlig ingang med oversikt, lag, slutspel och toppstatistik.</p>
+        <div class="cup-sep"></div>
+
+        <div class="cup-section">
+          <h3 class="cup-section-title">SEC Sommar</h3>
+          <div class="cup-list">
+            ${categories.sommar.length ? categories.sommar.map(renderCupCard).join("") : renderEmptyCupState("Inga sommarcuper hittades.")}
+          </div>
         </div>
-        <div class="spotlight-grid">
-          <article class="spotlight-card spotlight-card-main">
-            <p class="entity-label">Senaste cup</p>
-            <h3>${escapeHtml(featuredCup.name)}</h3>
-            <p>${featuredOverview.teams.length} lag, ${featuredOverview.groupMatches.length} gruppmatcher och ${featuredOverview.playoffMatches.length} slutspelsmatcher.</p>
-            <div class="summary-ribbon">
-              <span>Vinnare: ${escapeHtml(featuredCup.winner)}</span>
-              <span>Poangkung: ${escapeHtml(featuredCup.topScorer)}</span>
+
+        ${categories.challenger.length ? `
+          <div class="cup-sep"></div>
+          <div class="cup-section">
+            <h3 class="cup-section-title">Challenger</h3>
+            <div class="cup-list">
+              ${categories.challenger.map(renderCupCard).join("")}
             </div>
-            <a class="inline-link" href="#/cup/${encodeURIComponent(featuredCup.id)}">Ga till cupen</a>
-          </article>
-
-          <article class="spotlight-card">
-            <p class="entity-label">Featured match</p>
-            ${featuredOverview.featuredMatch ? renderCompactMatchSummary(featuredOverview.featuredMatch) : `<div class="empty-state">Ingen featured match an.</div>`}
-          </article>
-
-          <article class="spotlight-card">
-            <p class="entity-label">Basta malvakt</p>
-            ${featuredOverview.bestGoalie ? `
-              <div class="player-identity">
-                ${renderPlayerPortrait(featuredOverview.bestGoalie, "player-portrait-sm")}
-                <span class="player-identity-text">${escapeHtml(featuredOverview.bestGoalie.player)}</span>
-              </div>
-            ` : `<div class="empty-state">Ingen malvaktsdata an.</div>`}
-          </article>
-        </div>
+          </div>
+        ` : ""}
       </section>
-    ` : ""}
 
-    <section class="section section-highlight" id="results">
-      <div class="section-heading">
-        <p class="eyebrow">Resultat</p>
-        <h2>Senaste mastarna</h2>
-      </div>
-      <div class="champions-grid">
-        ${topChampions.length ? topChampions.map(renderChampionCard).join("") : `<div class="empty-state">Lagg till vinnardata sa visas mastarna har.</div>`}
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="section-heading">
-        <p class="eyebrow">Navigering</p>
-        <h2>Byggd som en sportportal</h2>
-        <p>Varje ingang ar tankt att snabbt ta dig vidare till matcher, statistik och profilsidor.</p>
-      </div>
-      <div class="portal-grid">
-        ${renderPortalCard("Cuper", "Ga direkt till cup-sidor med tabeller, slutspel och matchresultat.", "#/cups")}
-        ${renderPortalCard("Lag", "Se lagprofiler med loggor, spelare, senaste matcher och cuphistorik.", "#/teams")}
-        ${renderPortalCard("Spelare", "Oppna spelarkort med portratt, total statistik och alla SEC-cuper.", "#/players")}
-      </div>
-    </section>
-
-    <section class="section" id="cups">
-      <div class="section-heading">
-        <p class="eyebrow">Cuparkiv</p>
-        <h2>Alla SEC-cuper</h2>
-        <p>Hoppa direkt in i valfri cup for tabeller, matcher, lag och spelare.</p>
-      </div>
-      <div class="cups-grid">
-        ${state.cups.slice(0, 6).map(renderCupCard).join("")}
-      </div>
-      <div class="section-actions">
-        <a class="button button-primary" href="#/cups">Visa hela arkivet</a>
-      </div>
+      <footer id="sec-footer-wrapper">
+        <div class="sec-footer-glow"></div>
+        <div id="sec-footer-line"></div>
+        <div id="sec-footer-text">
+          Â© 2026 <span>Svenska eHockey Cupen</span> | Design & utveckling av <span>Svensk eHockey</span>
+        </div>
+      </footer>
     </section>
   `;
 }
 
 function renderCupsIndex() {
+  const categories = splitCupsByCategory(state.cups);
+
   return `
-    <section class="section-header-block">
-      <p class="eyebrow">Cuparkiv</p>
-      <h1 class="page-title">Alla SEC-cuper</h1>
-      <p class="page-intro">Varje cup har sin egen sida med oversikt, tabeller, slutspel, matchlogg och statistik.</p>
-    </section>
-
-    <section class="detail-grid">
-      <article class="detail-card hero-stat-card"><span class="detail-label">Cuper</span><strong>${state.cups.length}</strong></article>
-      <article class="detail-card hero-stat-card"><span class="detail-label">Matcher</span><strong>${sumBy(state.cups, "matchCount")}</strong></article>
-      <article class="detail-card hero-stat-card"><span class="detail-label">Lag</span><strong>${state.teams.length}</strong></article>
-      <article class="detail-card hero-stat-card"><span class="detail-label">Spelare</span><strong>${state.players.length}</strong></article>
-    </section>
-
-    <section class="section">
-      <div class="cups-grid">
-        ${state.cups.map(renderCupCard).join("")}
+    <section class="tab-panel cups-panel cups-panel-archive">
+      <h2>Alla SEC-cuper</h2>
+      <div class="cup-status">
+        Hela arkivet med alla cuper, sommarupplagor och challenger-turneringar.
       </div>
+
+      <div class="cup-section">
+        <h3 class="cup-section-title">Svenska eHockey Cupen</h3>
+        <div class="cup-list">
+          ${categories.regular.length ? categories.regular.map(renderCupCard).join("") : renderEmptyCupState("Inga vanliga SEC-cuper hittades.")}
+        </div>
+      </div>
+
+      <div class="cup-sep"></div>
+
+      <div class="cup-section">
+        <h3 class="cup-section-title">SEC Sommar</h3>
+        <div class="cup-list">
+          ${categories.sommar.length ? categories.sommar.map(renderCupCard).join("") : renderEmptyCupState("Inga sommarcuper hittades.")}
+        </div>
+      </div>
+
+      ${categories.challenger.length ? `
+        <div class="cup-sep"></div>
+        <div class="cup-section">
+          <h3 class="cup-section-title">Challenger</h3>
+          <div class="cup-list">
+            ${categories.challenger.map(renderCupCard).join("")}
+          </div>
+        </div>
+      ` : ""}
     </section>
   `;
 }
@@ -1034,7 +997,6 @@ function renderPlayerPage(player) {
         )}
       </section>
     ` : ""}
-
     ${player.goalieRows.length ? `
       <section class="section detail-card">
         <div class="section-heading compact">
@@ -1080,25 +1042,24 @@ function renderChampionCard(cup) {
 
 function renderCupCard(cup) {
   const overview = getCupOverview(cup);
+  const category = getCupCategory(cup);
+  const seasonText = getCupSeasonLabel(cup, category);
+  const dateLine = getCupDateLine(cup.matches);
+  const className = [
+    "cup",
+    category === "sommar" ? "is-sommar" : "",
+    category === "challenger" ? "is-challenger" : ""
+  ].filter(Boolean).join(" ");
 
   return `
-    <article class="cup-card">
-      <div class="cup-card-top">
-        <div>
-          <p class="cup-code">${escapeHtml(cup.code)}</p>
-          <h3 class="cup-name">${escapeHtml(cup.name)}</h3>
-        </div>
-        <span class="cup-badge">${escapeHtml(cup.badge)}</span>
-      </div>
-      <dl class="cup-summary">
-        <div><dt>Vinnare</dt><dd>${escapeHtml(cup.winner)}</dd></div>
-        <div><dt>Tvaa</dt><dd>${escapeHtml(cup.runnerUp)}</dd></div>
-        <div><dt>Matcher</dt><dd>${cup.matchCount}</dd></div>
-        <div><dt>Lag</dt><dd>${overview.teams.length}</dd></div>
-      </dl>
-      <div class="cup-footer">
-        <p class="cup-stage-note">Gruppspel: ${overview.groupMatches.length} matcher, slutspel: ${overview.playoffMatches.length} matcher.</p>
-        <a class="inline-link" href="#/cup/${encodeURIComponent(cup.id)}">Oppna cup</a>
+    <article class="${className}" role="link" tabindex="0" data-cup-link="#/cup/${encodeURIComponent(cup.id)}">
+      <img class="cup-logo" src="./SECLOGGA.png" alt="Cup Logo">
+      <a href="#/cup/${encodeURIComponent(cup.id)}">${escapeHtml(cup.name)}</a>
+      <div class="cup-season">
+        Sasong: ${escapeHtml(seasonText)}<br>
+        Datum: ${escapeHtml(dateLine)}<br>
+        Matcher: ${cup.matchCount}<br>
+        Lag: ${overview.teams.length}
       </div>
     </article>
   `;
@@ -1209,6 +1170,195 @@ function renderPortalCard(title, text, href) {
   `;
 }
 
+function renderGlobalSearchModule() {
+  return `
+    <div class="player-search-centered home-search">
+      <div class="search-title">Sok lag &amp; spelare</div>
+      <div class="search-wrapper">
+        <input id="globalSearch" placeholder="Sok lag eller spelare" autocomplete="off" aria-label="Sok lag eller spelare">
+        <div id="globalResults" role="listbox" aria-label="Sokresultat"></div>
+      </div>
+    </div>
+  `;
+}
+
+function splitCupsByCategory(cups) {
+  const regular = [];
+  const sommar = [];
+  const challenger = [];
+
+  cups.forEach(function(cup) {
+    const category = getCupCategory(cup);
+    if (category === "sommar") {
+      sommar.push(cup);
+    } else if (category === "challenger") {
+      challenger.push(cup);
+    } else {
+      regular.push(cup);
+    }
+  });
+
+  return {
+    regular: regular,
+    sommar: sommar,
+    challenger: challenger
+  };
+}
+
+function getCupCategory(cup) {
+  const source = [cup.code, cup.name, cup.badge].join(" ").toLowerCase();
+  if (source.indexOf("sommar") !== -1) {
+    return "sommar";
+  }
+  if (source.indexOf("challenger") !== -1) {
+    return "challenger";
+  }
+  return "regular";
+}
+
+function getCupSeasonLabel(cup, category) {
+  const label = String(cup.code || cup.name || "").trim();
+  const match = label.match(/([0-9]+(?:\.[0-9]+)?)/);
+  const number = match ? match[1] : "";
+
+  if (category === "sommar") {
+    return number ? "SEC Sommar " + number : "SEC Sommar";
+  }
+  if (category === "challenger") {
+    return number ? "SEC " + number + " Challenger" : "SEC Challenger";
+  }
+  return number ? "SEC " + number : label || "SEC";
+}
+
+function getCupDateLine(matches) {
+  const dated = (matches || [])
+    .map(function(match) {
+      return match.date || "";
+    })
+    .filter(Boolean)
+    .sort();
+
+  if (!dated.length) {
+    return "-";
+  }
+  if (dated.length === 1) {
+    return dated[0];
+  }
+  return dated[0] + " -> " + dated[dated.length - 1];
+}
+
+function renderEmptyCupState(message) {
+  return `<div class="sec-empty-state">${escapeHtml(message)}</div>`;
+}
+
+function bindViewInteractions() {
+  bindCupCardLinks();
+  bindGlobalSearch();
+}
+
+function bindCupCardLinks() {
+  Array.from(document.querySelectorAll("[data-cup-link]")).forEach(function(card) {
+    const href = card.getAttribute("data-cup-link");
+    if (!href || card.dataset.bound === "true") {
+      return;
+    }
+
+    card.dataset.bound = "true";
+
+    card.addEventListener("click", function(event) {
+      if (event.target && event.target.tagName === "A") {
+        return;
+      }
+      window.location.hash = href.replace(/^#/, "");
+    });
+
+    card.addEventListener("keydown", function(event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        window.location.hash = href.replace(/^#/, "");
+      }
+    });
+  });
+}
+
+function bindGlobalSearch() {
+  const input = document.getElementById("globalSearch");
+  const results = document.getElementById("globalResults");
+
+  if (!input || !results || input.dataset.bound === "true") {
+    return;
+  }
+
+  input.dataset.bound = "true";
+
+  const items = []
+    .concat(state.teams.map(function(team) {
+      return {
+        type: "team",
+        label: team.name,
+        href: "#/team/" + encodeURIComponent(team.key),
+        meta: team.cups[0] ? team.cups[0].code : "Lag"
+      };
+    }))
+    .concat(state.players.map(function(player) {
+      return {
+        type: "player",
+        label: player.name,
+        href: "#/player/" + encodeURIComponent(player.key),
+        meta: player.teamNames[0] || "Spelare"
+      };
+    }));
+
+  function closeResults() {
+    results.style.display = "none";
+    results.innerHTML = "";
+  }
+
+  input.addEventListener("input", function() {
+    const query = slugify(input.value || "");
+
+    if (!query) {
+      closeResults();
+      return;
+    }
+
+    const matched = items.filter(function(item) {
+      return slugify(item.label).indexOf(query) !== -1 || slugify(item.meta).indexOf(query) !== -1;
+    }).slice(0, 20);
+
+    if (!matched.length) {
+      closeResults();
+      return;
+    }
+
+    results.innerHTML = matched.map(function(item) {
+      return `
+        <div class="search-item" role="option" data-href="${escapeHtml(item.href)}">
+          <div>
+            <div>${escapeHtml(item.label)}</div>
+            <div class="search-sub">${escapeHtml(item.meta)}</div>
+          </div>
+          <div class="search-pill">${item.type === "team" ? "Lag" : "Spelare"}</div>
+        </div>
+      `;
+    }).join("");
+
+    results.style.display = "block";
+
+    Array.from(results.querySelectorAll(".search-item")).forEach(function(element) {
+      element.addEventListener("click", function() {
+        window.location.hash = element.dataset.href.replace(/^#/, "");
+      });
+    });
+  });
+
+  document.addEventListener("click", function(event) {
+    if (!results.contains(event.target) && event.target !== input) {
+      closeResults();
+    }
+  });
+}
+
 function renderMatchCollection(title, matches) {
   return `
     <section class="stage-block">
@@ -1266,8 +1416,9 @@ function renderErrorState(message) {
 
 function renderLoadingState() {
   return `
-    <section class="section">
-      <div class="empty-state">Laddar SEC-data...</div>
+    <section class="tab-panel cups-panel">
+      <h2>Valj turnering</h2>
+      <div class="cup-status">Laddar cuper...</div>
     </section>
   `;
 }
@@ -1277,6 +1428,7 @@ function setView(html) {
     throw new Error("Saknar #app-view i index.html.");
   }
   appView.innerHTML = html;
+  bindViewInteractions();
 }
 
 function showFatalError(error) {
@@ -1344,6 +1496,7 @@ function ingestStandingRow(standings, teamName, goalsFor, goalsAgainst, overtime
   if (goalsFor > goalsAgainst) {
     row.wins += 1;
     row.points += 3;
+  }
   } else if (overtime) {
     row.otLosses += 1;
     row.points += 1;
@@ -1560,8 +1713,8 @@ function slugify(value) {
   return String(value || "")
     .trim()
     .toLowerCase()
-    .replace(/[åä]/g, "a")
-    .replace(/ö/g, "o")
+    .replace(/[Ã¥Ã¤]/g, "a")
+    .replace(/Ã¶/g, "o")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
