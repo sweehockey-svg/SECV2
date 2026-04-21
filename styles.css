@@ -845,43 +845,52 @@ h3,
 .cup-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 20px;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 24px;
   border: 1px solid var(--line);
   background:
-    linear-gradient(180deg, rgba(8, 15, 30, 0.88), rgba(3, 6, 14, 0.94));
+    linear-gradient(180deg, rgba(8, 15, 30, 0.94), rgba(3, 6, 14, 0.98)),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.02), transparent 42%);
   box-shadow:
     0 18px 48px rgba(0, 0, 0, 0.36),
     inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  position: sticky;
+  top: 78px;
+  z-index: 30;
 }
 
 .cup-tab {
-  min-height: 46px;
-  padding: 0 18px;
+  min-height: 52px;
+  padding: 0 20px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(214, 177, 95, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  color: rgba(255, 255, 255, 0.82);
   font: inherit;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .cup-tab:hover {
   transform: translateY(-1px);
-  border-color: rgba(214, 177, 95, 0.26);
+  border-color: rgba(214, 177, 95, 0.34);
   color: #fff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 
 .cup-tab.is-active {
-  background: linear-gradient(135deg, rgba(214, 177, 95, 0.18), rgba(75, 167, 255, 0.12));
-  border-color: rgba(214, 177, 95, 0.5);
-  color: var(--gold-soft);
-  box-shadow: 0 0 18px rgba(214, 177, 95, 0.16);
+  background:
+    linear-gradient(135deg, rgba(214, 177, 95, 0.24), rgba(75, 167, 255, 0.14)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border-color: rgba(214, 177, 95, 0.56);
+  color: #fff2c4;
+  box-shadow:
+    0 0 0 1px rgba(214, 177, 95, 0.12) inset,
+    0 0 18px rgba(214, 177, 95, 0.18);
 }
 
 .cup-tab-panel {
@@ -889,6 +898,11 @@ h3,
 }
 
 .cup-tab-panel.is-active {
+  display: grid;
+  gap: 18px;
+}
+
+.cup-tab-panels {
   display: grid;
   gap: 18px;
 }
@@ -1288,6 +1302,7 @@ select:focus,
 
   .cup-tabs {
     padding: 10px;
+    position: static;
   }
 
   .cup-tab {
