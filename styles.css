@@ -837,6 +837,138 @@ h3,
   background: rgba(8, 23, 39, 0.88);
 }
 
+.cup-tabs-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.cup-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(8, 15, 30, 0.88), rgba(3, 6, 14, 0.94));
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.cup-tab {
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.78);
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.cup-tab:hover {
+  transform: translateY(-1px);
+  border-color: rgba(214, 177, 95, 0.26);
+  color: #fff;
+}
+
+.cup-tab.is-active {
+  background: linear-gradient(135deg, rgba(214, 177, 95, 0.18), rgba(75, 167, 255, 0.12));
+  border-color: rgba(214, 177, 95, 0.5);
+  color: var(--gold-soft);
+  box-shadow: 0 0 18px rgba(214, 177, 95, 0.16);
+}
+
+.cup-tab-panel {
+  display: none;
+}
+
+.cup-tab-panel.is-active {
+  display: grid;
+  gap: 18px;
+}
+
+.playoff-shell,
+.rules-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.playoff-bracket,
+.rules-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.playoff-bracket {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.playoff-round {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(8, 15, 30, 0.92), rgba(3, 6, 14, 0.96)),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.02), transparent 42%);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.playoff-round-title {
+  color: var(--gold-soft);
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playoff-round-list {
+  display: grid;
+  gap: 12px;
+}
+
+.playoff-match {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(214, 177, 95, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.playoff-team-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.playoff-team-row strong {
+  color: var(--gold-soft);
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 1.3rem;
+}
+
+.playoff-match-meta {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.rules-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .cup-subnav .breadcrumbs {
   margin: 0;
 }
@@ -1054,6 +1186,10 @@ select:focus,
   .champions-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .rules-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 860px) {
@@ -1148,5 +1284,14 @@ select:focus,
   .entity-brand,
   .champion-brand {
     align-items: flex-start;
+  }
+
+  .cup-tabs {
+    padding: 10px;
+  }
+
+  .cup-tab {
+    width: 100%;
+    justify-content: center;
   }
 }
