@@ -6,7 +6,7 @@
   <title>Svensk eHockey</title>
   <meta
     name="description"
-    content="Svensk eHockey samlar Svenska eHockey Cupen. Se vinnare, matcher, spelarstatistik och målvaktsstatistik för SEC 1, SEC 2 och vidare."
+    content="Svensk eHockey samlar Svenska eHockey Cupen med matcher, vinnare och statistik i ett gemensamt arkiv."
   >
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,9 @@
   <div class="page-shell">
     <header class="site-header">
       <a class="brand" href="#top" aria-label="Svensk eHockey">
-        <span class="brand-mark"></span>
+        <span class="brand-logo-shell">
+          <img class="brand-logo" src="./SECLOGGA.png" alt="SEC logga">
+        </span>
         <span class="brand-text">
           <strong>Svensk eHockey</strong>
           <span>Officiell hubb för SEC-cuperna</span>
@@ -27,7 +29,7 @@
       <nav class="site-nav" aria-label="Huvudmeny">
         <a href="#cups">Cuper</a>
         <a href="#results">Resultat</a>
-        <a href="#about">Om oss</a>
+        <a href="#about">Format</a>
       </nav>
     </header>
 
@@ -35,14 +37,20 @@
       <section class="hero">
         <div class="hero-copy">
           <p class="eyebrow">Svenska eHockey Cupen</p>
-          <h1>En ny hemmaplan för alla SEC-cuper.</h1>
+          <h1>Mörkblått, tydligt och byggt för hela SEC.</h1>
           <p class="hero-text">
-            Här samlar vi hela historiken för Svensk eHockey. Från tidiga SEC-turneringar i sheetet till nya cuper i databasen, allt på ett ställe.
+            Här samlas hela historiken för Svensk eHockey. Från tidigare SEC-turneringar i sheetet till nya cuper i databasen, allt på ett och samma ställe.
           </p>
 
           <div class="hero-actions">
             <a class="button button-primary" href="#cups">Se alla cuper</a>
             <a class="button button-secondary" href="#results">Senaste resultat</a>
+          </div>
+
+          <div class="hero-strip" aria-label="Snabb info">
+            <span>SEC 1 till SEC 20</span>
+            <span>Gruppspel och slutspel</span>
+            <span>Arkiv, statistik och matchlogg</span>
           </div>
 
           <dl class="hero-stats" id="hero-stats">
@@ -62,7 +70,14 @@
         </div>
 
         <aside class="hero-panel">
-          <p class="panel-label">Säsongsöversikt</p>
+          <div class="hero-panel-brand">
+            <img class="hero-panel-logo" src="./SECLOGGA.png" alt="SEC logga">
+            <div>
+              <p class="panel-label">Säsongsöversikt</p>
+              <h2 class="panel-title">SEC Control Center</h2>
+            </div>
+          </div>
+
           <div class="hero-panel-grid">
             <article>
               <span>Format</span>
@@ -80,6 +95,10 @@
               <span>Status</span>
               <strong id="data-status">Laddar data</strong>
             </article>
+          </div>
+
+          <div class="hero-panel-footer">
+            <p>Designen är byggd för att kännas mer som en riktig esport- och cupplattform än en vanlig tabellsida.</p>
           </div>
         </aside>
       </section>
@@ -122,9 +141,7 @@
         <div class="section-heading">
           <p class="eyebrow">Svensk eHockey</p>
           <h2>Byggd för att växa med varje ny cup</h2>
-          <p>
-            Sidan är förberedd för att läsa äldre SEC-cuper från Google Sheet och nya cuper från databas utan att designen eller strukturen behöver ändras.
-          </p>
+          <p>Sidan är förberedd för att läsa äldre SEC-cuper från Google Sheet och nya cuper från databas utan att designen eller strukturen behöver ändras.</p>
         </div>
 
         <div class="info-grid">
@@ -137,8 +154,8 @@
             <p>När du uppdaterar sheetet eller databasen kan sidan hämta nytt innehåll utan att du behöver bygga om allt.</p>
           </article>
           <article class="info-card">
-            <h3>Tydlig identitet</h3>
-            <p>Färger, typografi och upplägg är gjorda för att kännas sportigt, svenskt och mer premium än en vanlig standardmall.</p>
+            <h3>Stark identitet</h3>
+            <p>Mörkblå bakgrund, ljusa kontraster och loggan i fokus gör att sidan känns mer som SEC och mindre som en standardmall.</p>
           </article>
         </div>
       </section>
